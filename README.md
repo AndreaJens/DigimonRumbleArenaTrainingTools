@@ -1,8 +1,8 @@
-# DigimonRumbleArenaTrainingTools
+# Digimon Rumble Arena - Training Tools v1.0
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
-* Load Digimon Rumble Arena via the [Bizhawk emulator](http://tasvideos.org/BizHawk.html). Open the Lua console and load the script that is found in this repository.
+* Load Digimon Rumble Arena via the [Bizhawk emulator](http://tasvideos.org/BizHawk.html). Open the Lua console and load the script **DRA_master_tool.lua** that is found in this repository.
 * Select "2 Player mode" and start a match.
 * Once in game, you can push the button assigned to L3 on your joypad to call the GUI. 
 
