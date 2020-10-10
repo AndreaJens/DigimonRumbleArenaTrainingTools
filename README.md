@@ -21,7 +21,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too
 
 # Acknowledgements
-* Bizhawk Memory Watch + Lua tools, which made this possible
+* Bizhawk's Memory Watch and Memory Search utiliy + all its Lua tools, which made this possible
 * The [Digimon Rumble Arena Discord server](https://discord.gg/DTpRqwd), who helped me figuring out which tools to use
 * This [handy website](http://bsfree.shadowflareindustries.com/index.php?s=1&d=8&g=8415&c=20939) where I could retrieve cheat codes for infinite health and frozen timer. Credits to the user StalkerX for posting the codes I used in that part of the script.
 * Yuri Bacon for pointing me in the right direction and supplying some of the material I used for this script
