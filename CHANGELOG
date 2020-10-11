@@ -1,0 +1,6 @@
+v 1.1 (11.10.2020)
+* 	Replaced "Walk Left/Right" and "Dash Left/Right" with "Walk Towards/Away" and "Dash Towards/Away",
+	after finding out how to consistently access the X position memory addresses of both players.
+
+v 1.0 (10.10.2020)
+* 	First version
