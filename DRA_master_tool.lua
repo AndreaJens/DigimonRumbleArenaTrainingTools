@@ -5,7 +5,6 @@
 	2020 - Andrea "Jens" Demetrio
   ]]--
 
-
   -- global variables
   local trainingOverlayVisible = false
   local inputTable={}
@@ -13,7 +12,7 @@
   local trainingOptionIndex = 1
   local optionIndexes = {1, 1, 4, 2}
   local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
-  local movementStrings = {"None", "Crouch", "Walk Right", "Walk Left", "Dash Right", "Dash Left", "Hop", "Jump", "High Jump"}
+  local movementStrings = {"None", "Crouch", "Walk Towards", "Walk Away", "Dash Towards", "Dash Away", "Hop", "Jump", "High Jump"}
   local healthStrings = {"Normal", "Infinite P2", "Infinite P1", "Infinite P1/P2"}
   local timerStrings = {"Normal", "Infinite"}
   local optionValueslists = {actionStrings, movementStrings, healthStrings, timerStrings}
@@ -29,6 +28,46 @@
   local activeColorItem = 0xffffffff
   local inactiveColorLabel = 0xff444400
   local inactiveColorItem  = 0xff444444
+  local player1CharacterIndex = 0
+  local player2CharacterIndex = 0
+  local stageIndex = 0
+  
+  -- matchup tables for extra values --
+  -- the character selected by Player 1 is stored at the memory address 0x12AA4C
+  -- the character selected by Player 2 is stored at the memory address 0x12AA84
+  
+  -- 00 - Reapermon, 01 - Black WarGreymon, 02 - Omnimon, 03 - Impmon, 04 - Beelzemon, 05 - Imperialdramon Paladin Mode, 06 - Gabumon, 07 - Agumon, 08 - Patamon, 09 - Terriermon, 10 - Guilmon, 11 - Renamon, 12 - Wormmon, 13 - Veemon, 14 - Gatomon, 15 - Metal Garurumon, 16 - WarGreymon, 17 - Seraphimon, 18 - MegaGargomon, 19 - Gallantmon, 20 - Sakuyamon, 21 - Stingmon, 22 - Imperialdramon, 23 - Magnadramon 
+  
+  -- the stage index is stored at the memory address 0x12AB20
+  -- 1=Wilderness, 2=Revolution, 3=Sanctuary, 4=Glacier, 5=Volcano, 6=Reapermon's Stage(Final Stage), 7=Basketball Game, 8=Digivolve Race, 9=Target Games
+  
+  -- the X position of player 1 is always stored at the address 0x107AC8, independent on stage and match-up
+  -- as a reference: the starting point for P2 at Volcano has X = 327680. Use it to fill the missing values
+  local p2PositionMemoryValues = {}
+  p2PositionMemoryValues[0]  = 0x107F78  -- P1 Reapermon
+  p2PositionMemoryValues[1]  = 0x107F9C  -- P1 BlackWarGreymon
+  p2PositionMemoryValues[2]  = 0x107F84  -- P1 Omnimon
+  p2PositionMemoryValues[3]  = 0x107F94  -- P1 Impmon
+  p2PositionMemoryValues[4]  = 0x107F88  -- P1 Beelzemon
+  p2PositionMemoryValues[5]  = 0x107FC8  -- P1 Imperialdramon Paladin Mode
+  p2PositionMemoryValues[6]  = 0x107F7C  -- P1 Gabumon
+  p2PositionMemoryValues[7]  = 0x107F78  -- P1 Agumon
+  p2PositionMemoryValues[8]  = 0x107FC0  -- P1 Patamon
+  p2PositionMemoryValues[9]  = 0x107F80  -- P1 Terriermon
+  p2PositionMemoryValues[10] = 0x107F78  -- P1 Guilmon
+  p2PositionMemoryValues[11] = 0x107FA8  -- P1 Renamon
+  p2PositionMemoryValues[12] = 0x107F7C  -- P1 Wormon
+  p2PositionMemoryValues[13] = 0x107F78  -- P1 Veemon
+  p2PositionMemoryValues[14] = 0x107F7C  -- P1 Gatomon
+  p2PositionMemoryValues[15] = 0x107FA4  -- P1 MetalGarurumon
+  p2PositionMemoryValues[16] = 0x107F98  -- P1 WarGreymon
+  p2PositionMemoryValues[16] = 0x107F80  -- P1 Seraphimon
+  p2PositionMemoryValues[18] = 0x107F80  -- P1 MegaGargomon
+  p2PositionMemoryValues[19] = 0x107F7C  -- P1 Gallantmon
+  p2PositionMemoryValues[20] = 0x107F94  -- P1 Sakuyamon
+  p2PositionMemoryValues[21] = 0x107F7C  -- P1 Stingmon
+  p2PositionMemoryValues[22] = 0x107FC8  -- P1 Imperialdramon
+  p2PositionMemoryValues[23] = 0x107F80  -- P1 Magnadramon
   
   -- draw GUI
   function drawTrainingGui()
@@ -252,14 +291,37 @@
   -- handle dummy actions
   function handleDummyMovement()
 	movementTimer = movementTimer + 1
-	if movementStrings[optionIndexes[2]] == "Walk Right" then
-		joypad.set({Right=true}, 2)
-	elseif movementStrings[optionIndexes[2]] == "Walk Left" then
-		joypad.set({Left=true}, 2)
-	elseif movementStrings[optionIndexes[2]] == "Dash Right" then
-		dashRight()
-	elseif movementStrings[optionIndexes[2]] == "Dash Left" then
-		dashLeft()
+	if p2PositionMemoryValues[player1CharacterIndex] ~= nil then
+		player1X = memory.read_s32_le(0x107AC8)
+		player2X = memory.read_s32_le(p2PositionMemoryValues[player1CharacterIndex])
+	else
+		player1X = 0
+		player2X = 1
+	end
+	if movementStrings[optionIndexes[2]] == "Walk Towards" then
+		if (player1X > player2X) then
+			joypad.set({Right=true}, 2)
+		elseif (player1X < player2X) then
+			joypad.set({Left=true}, 2)
+		end
+	elseif movementStrings[optionIndexes[2]] == "Walk Away" then
+		if (player1X > player2X) then
+			joypad.set({Left=true}, 2)
+		elseif (player1X < player2X) then
+			joypad.set({Right=true}, 2)
+		end
+	elseif movementStrings[optionIndexes[2]] == "Dash Towards" then
+		if (player1X > player2X) then
+			dashRight()
+		elseif (player1X < player2X) then
+			dashLeft()
+		end
+	elseif movementStrings[optionIndexes[2]] == "Dash Away" then
+		if (player1X > player2X) then
+			dashLeft()
+		elseif (player1X < player2X) then
+			dashRight()
+		end
 	elseif movementStrings[optionIndexes[2]] == "Crouch" then
 		joypad.set({Down=true}, 2)
 	elseif movementStrings[optionIndexes[2]] == "Hop" then
@@ -345,6 +407,9 @@
   
   -- main routine
   while true do
+   player1CharacterIndex = memory.read_u16_le(0x12AA4C)
+   player2CharacterIndex = memory.read_u16_le(0x12AA84)
+   stageIndex = memory.read_u16_le(0x12AB20)
    inputTable=joypad.get(1)
    handleTrainingGui(inputTable, buttonPressedAtLastFrame)
    if not trainingOverlayVisible then
