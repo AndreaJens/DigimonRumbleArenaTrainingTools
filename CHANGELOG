@@ -1,6 +1,7 @@
 v 1.1.5 (12.10.2020)
 * 	Added GUI handles for showing HP and Digi (partial support around the cast)
 *	Added "action after block" option
+*	General code refactoring
 
 v 1.1 (11.10.2020)
 * 	Replaced "Walk Left/Right" and "Dash Left/Right" with "Walk Towards/Away" and "Dash Towards/Away",
