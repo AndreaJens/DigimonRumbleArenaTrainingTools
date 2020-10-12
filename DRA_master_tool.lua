@@ -1,29 +1,73 @@
-  --[[Digimon Rumble Arena Training Mode Script v1.0
+    --[[Digimon Rumble Arena Training Mode Script v1.1.5
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
 	2020 - Andrea "Jens" Demetrio
   ]]--
-
+  
   -- global variables
+  local mainIndexes = {}
+  mainIndexes["Action"] 	= 1
+  mainIndexes["Movement"] 	= 2
+  mainIndexes["HP"] 		= 4
+  mainIndexes["Timer"] 		= 5
+  mainIndexes["HUD"] 		= 6
+  mainIndexes["AftDmg"]		= 3
+  
   local trainingOverlayVisible = false
   local inputTable={}
   local buttonPressedAtLastFrame = {}
+  
   local trainingOptionIndex = 1
-  local optionIndexes = {1, 1, 4, 2}
+  
+  local optionIndexes = {}
+  optionIndexes[mainIndexes["Action"]] 		= 1
+  optionIndexes[mainIndexes["Movement"]] 	= 1
+  optionIndexes[mainIndexes["HP"]] 			= 1
+  optionIndexes[mainIndexes["Timer"]] 		= 1
+  optionIndexes[mainIndexes["HUD"]] 		= 1
+  optionIndexes[mainIndexes["AftDmg"]] 		= 2
+  
   local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
   local movementStrings = {"None", "Crouch", "Walk Towards", "Walk Away", "Dash Towards", "Dash Away", "Hop", "Jump", "High Jump"}
   local healthStrings = {"Normal", "Infinite P2", "Infinite P1", "Infinite P1/P2"}
   local timerStrings = {"Normal", "Infinite"}
-  local optionValueslists = {actionStrings, movementStrings, healthStrings, timerStrings}
-  local labels = {"Dummy Action", "Dummy Movement", "Health Bars", "Timer"}
+  local yesnoString = {"Yes", "No"}
+  local hpDigiValues = {"No", "Percentage", "Absolute"}
+  
+  -- menu labels
+  local labels = {}
+  labels[mainIndexes["Action"]] 	= "Dummy Action"
+  labels[mainIndexes["Movement"]] 	= "Dummy Movement"
+  labels[mainIndexes["HP"]] 		= "Health Bars"
+  labels[mainIndexes["Timer"]] 		= "Timer"
+  labels[mainIndexes["HUD"]] 		= "Show HP/Digi"
+  labels[mainIndexes["AftDmg"]] 	= "Act only after Damage"
+  
+  -- menu values
+  local optionValueslists = {}
+  optionValueslists[mainIndexes["Action"]] 		= actionStrings
+  optionValueslists[mainIndexes["Movement"]] 	= movementStrings
+  optionValueslists[mainIndexes["HP"]] 			= healthStrings
+  optionValueslists[mainIndexes["Timer"]] 		= timerStrings
+  optionValueslists[mainIndexes["HUD"]] 		= hpDigiValues
+  optionValueslists[mainIndexes["AftDmg"]] 		= yesnoString
+  
+  -- menu sizes
+  local optionSizes = {}
+  optionSizes[mainIndexes["Action"]] 	= table.getn(actionStrings)
+  optionSizes[mainIndexes["Movement"]] 	= table.getn(movementStrings)
+  optionSizes[mainIndexes["HP"]] 		= table.getn(healthStrings)
+  optionSizes[mainIndexes["Timer"]] 	= table.getn(timerStrings)
+  optionSizes[mainIndexes["HUD"]] 		= table.getn(hpDigiValues)
+  optionSizes[mainIndexes["AftDmg"]] 	= table.getn(yesnoString)
+   
   local labelsSize = table.getn(labels)
   local actionTimer = 0
   local delayTimer = 0
   local movementTimer = 0
   local delayMovementTimer = 0
   local actionIndex = 0
-  local optionSizes = {table.getn(actionStrings), table.getn(movementStrings), table.getn(healthStrings), table.getn(timerStrings)}
   local activeColorLabel = 0xffaaaa00
   local activeColorItem = 0xffffffff
   local inactiveColorLabel = 0xff444400
@@ -31,6 +75,28 @@
   local player1CharacterIndex = 0
   local player2CharacterIndex = 0
   local stageIndex = 0
+  
+  local player1HP = 0
+  local player1HPLastFrame = 0
+  local player2HP = 0
+  local player2HPLastFrame = 0
+  local defaultHPValue = 120
+  local player1Digi = 0
+  local player1DigiLastFrame = 0
+  local player2Digi = 0
+  local player2DigiLastFrame = 0
+  local defaultDigiValue = 70
+  
+  local scorePlayer1Address = 0x05FBEC
+  local scorePlayer2Address = 0x05FC04
+  local player1Score = 0
+  local player2Score = 0
+  local player1ScoreLastFrame = 0
+  local player2ScoreLastFrame = 0
+  
+  local actOnlyAfterDamage = false
+  local isPerformingAfterDamageAction = false
+  local afterDamageActionTimer = 0
   
   -- matchup tables for extra values --
   -- the character selected by Player 1 is stored at the memory address 0x12AA4C
@@ -69,6 +135,21 @@
   p2PositionMemoryValues[22] = 0x107FC8  -- P1 Imperialdramon
   p2PositionMemoryValues[23] = 0x107F80  -- P1 Magnadramon
   
+  -- there is a reproducible way to get the health bars pixel values, using character mirror matches to gather data
+  -- indexes as above
+  local characterByteSizeForHealthBars = {}
+  characterByteSizeForHealthBars[1]		= 540804	-- BlackWarGreymon
+  characterByteSizeForHealthBars[2]		= 540780	-- Omnimon
+  characterByteSizeForHealthBars[7]		= 542000	-- Agumon
+  characterByteSizeForHealthBars[8]		= 542048	-- Patamon
+  characterByteSizeForHealthBars[9]		= 541984	-- Terriermon
+  characterByteSizeForHealthBars[10]	= 541972	-- Guilmon
+  characterByteSizeForHealthBars[11]	= 542044	-- Renamon
+  characterByteSizeForHealthBars[12]	= 541976	-- Wormon
+  characterByteSizeForHealthBars[14]	= 541980	-- Gatomon
+  characterByteSizeForHealthBars[16]	= 540800	-- WarGreymon
+  characterByteSizeForHealthBars[21]	= 540772	-- Stingmon
+  
   -- draw GUI
   function drawTrainingGui()
 	gui.drawBox(0, 0, 960, 480, null, 0xaaaaaaaa)
@@ -82,8 +163,68 @@
 			color2 = activeColorItem
 		end
 		gui.text(50, 40 + index * 30, labels[index], color1)
-		gui.text(200, 40 + index * 30, optionValueslists[index][optionIndexes[index]], color2)
+		gui.text(300, 40 + index * 30, optionValueslists[index][optionIndexes[index]], color2)
 	end
+  end
+  
+  -- draw HP values
+  function drawHPValues()
+	  if optionIndexes[mainIndexes["HUD"]] == 2 then
+	    gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
+		gui.drawText(356, 430, tostring(math.floor(player1HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
+		gui.drawText(454, 430, tostring(math.floor(player2HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+		gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+	  elseif optionIndexes[mainIndexes["HUD"]] == 3 then
+		gui.drawText(356, 430, tostring(player1HP), 0xffffffff, 0xff000000, 16, null, null, "right")
+		gui.drawText(454, 430, tostring(player2HP), 0xffffffff, 0xff000000, 16, null, null, "left")
+		gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
+		gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
+	end
+  end
+  
+  -- update HP values
+  function updateHPValues()
+	if (characterByteSizeForHealthBars[player1CharacterIndex] ~= nil and characterByteSizeForHealthBars[player2CharacterIndex] ~= nil) then
+		local addressHPPlayer1 = characterByteSizeForHealthBars[player1CharacterIndex] + characterByteSizeForHealthBars[player2CharacterIndex]
+		local addressHPPlayer2 = addressHPPlayer1 + 132
+		player1HPLastFrame = player1HP
+		player2HPLastFrame = player2HP
+		player1DigiLastFrame = player1Digi
+		player2DigiLastFrame = player2Digi
+		player1HP = memory.read_u16_le(addressHPPlayer1)
+		player2HP = memory.read_u16_le(addressHPPlayer2)
+		player1Digi = memory.read_u16_le(addressHPPlayer1 + 16)
+		player2Digi = memory.read_u16_le(addressHPPlayer2 + 16)
+	end
+  end
+  
+  -- update score values
+  -- we use the score increase as a canary to get when one character is hit by the opponent, to trigger "block after first hit" actions
+  function updateScoreValues() 
+	player1ScoreLastFrame = player1Score
+	player2ScoreLastFrame = player2Score
+	player1Score = memory.read_u32_le(scorePlayer1Address)
+	player2Score = memory.read_u32_le(scorePlayer2Address)
+	-- player 1 score increase = player 2 was hit
+	if (actOnlyAfterDamage and player1Score > player1ScoreLastFrame) then
+		isPerformingAfterDamageAction = true
+		afterDamageActionTimer = 0
+	end
+	if (player1Score >= 999999) then
+		memory.write_u32_le(scorePlayer1Address, 0)
+		memory.write_u32_le(scorePlayer2Address, 0)
+	end 
+  end
+  
+  -- handle "act after damage"
+  function handleActAfterDamage()
+	if optionIndexes[mainIndexes["AftDmg"]] == 1 then
+		actOnlyAfterDamage = true
+	else
+		actOnlyAfterDamage = false
+	end
+	isPerformingAfterDamageAction = false
+	afterDamageActionTimer = 0
   end
   
   -- handle new action (reset variables)
@@ -97,6 +238,7 @@
   
   -- handle menu exit (sets all new values in memory)
   function handleSelection()
+	handleActAfterDamage()
 	handleNewAction()
 	handleHealthBars()
 	handleTimer()
@@ -298,85 +440,94 @@
 		player1X = 0
 		player2X = 1
 	end
-	if movementStrings[optionIndexes[2]] == "Walk Towards" then
+	if movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Towards" then
 		if (player1X > player2X) then
 			joypad.set({Right=true}, 2)
 		elseif (player1X < player2X) then
 			joypad.set({Left=true}, 2)
 		end
-	elseif movementStrings[optionIndexes[2]] == "Walk Away" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Away" then
 		if (player1X > player2X) then
 			joypad.set({Left=true}, 2)
 		elseif (player1X < player2X) then
 			joypad.set({Right=true}, 2)
 		end
-	elseif movementStrings[optionIndexes[2]] == "Dash Towards" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Towards" then
 		if (player1X > player2X) then
 			dashRight()
 		elseif (player1X < player2X) then
 			dashLeft()
 		end
-	elseif movementStrings[optionIndexes[2]] == "Dash Away" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Away" then
 		if (player1X > player2X) then
 			dashLeft()
 		elseif (player1X < player2X) then
 			dashRight()
 		end
-	elseif movementStrings[optionIndexes[2]] == "Crouch" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Crouch" then
 		joypad.set({Down=true}, 2)
-	elseif movementStrings[optionIndexes[2]] == "Hop" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Hop" then
 		jumpSet(5)
-	elseif movementStrings[optionIndexes[2]] == "Jump" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Jump" then
 		jumpSet(15)
-	elseif movementStrings[optionIndexes[2]] == "High Jump" then
+	elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "High Jump" then
 		jumpSet(35)
 	end
   end
   
   -- handle dummy actions
   function handleDummy()
-    actionTimer = actionTimer + 1
-	if (delayTimer > 0 or actionStrings[optionIndexes[1]] == "None") then
-		handleDummyMovement()
-	else
-		movementTimer = 0
+	if (isPerformingAfterDamageAction) then
+		afterDamageActionTimer = afterDamageActionTimer + 1
+		if afterDamageActionTimer > 120 then
+			afterDamageActionTimer = 0
+			isPerformingAfterDamageAction = false
+		end
 	end
-	if actionStrings[optionIndexes[1]] == "Block" then
-		joypad.set({L1=true}, 2)
-	elseif actionStrings[optionIndexes[1]] == "Crouch Block" then
-		joypad.set({L1=true, Down=true}, 2)
-	elseif actionStrings[optionIndexes[1]] == "Special1" then
-		singleActionSet({Circle=true}, {Circle=false})
-	elseif actionStrings[optionIndexes[1]] == "Special2" then
-		singleActionSet({Triangle=true}, {Triangle=false})
-	elseif actionStrings[optionIndexes[1]] == "Jab" then
-		singleActionSet({Square=true}, {Square=false})
-	elseif actionStrings[optionIndexes[1]] == "Double Jab" then
-		performJab2Combo()
-	elseif actionStrings[optionIndexes[1]] == "Triple Jab" then
-		performJab3Combo()
-	elseif actionStrings[optionIndexes[1]] == "Sweep" then
-		performSweep()
-	elseif actionStrings[optionIndexes[1]] == "Launcher" then
-		performLauncher()
-	elseif actionStrings[optionIndexes[1]] == "Super" then
-		singleActionSet({R1=true}, {R1=false})
+	if ((not actOnlyAfterDamage) or (actOnlyAfterDamage and isPerformingAfterDamageAction)) then
+		actionTimer = actionTimer + 1
+		if (delayTimer > 0 or actionStrings[optionIndexes[mainIndexes["Action"]]] == "None") then
+			handleDummyMovement()
+		else
+			movementTimer = 0
+		end
+		if actionStrings[optionIndexes[mainIndexes["Action"]]] == "Block" then
+			joypad.set({L1=true}, 2)
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Crouch Block" then
+			joypad.set({L1=true, Down=true}, 2)
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special1" then
+			singleActionSet({Circle=true}, {Circle=false})
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special2" then
+			singleActionSet({Triangle=true}, {Triangle=false})
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Jab" then
+			singleActionSet({Square=true}, {Square=false})
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Double Jab" then
+			performJab2Combo()
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Triple Jab" then
+			performJab3Combo()
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Sweep" then
+			performSweep()
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Launcher" then
+			performLauncher()
+		elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Super" then
+			singleActionSet({R1=true}, {R1=false})
+		end
 	end
   end
   
   -- handle health bars
   function handleHealthBars()
-	if healthStrings[optionIndexes[3]] ==  "Infinite P1" then
+	if healthStrings[optionIndexes[mainIndexes["HP"]]] ==  "Infinite P1" then
 		memory.write_u16_le(0x7F36C, 0x0800)
 		memory.write_u16_le(0x7F36E, 0x3121)
 		memory.write_u16_le(0x7F3A0, 0x0005)
 		memory.write_u16_le(0x7F3A2, 0x1020)
-	elseif healthStrings[optionIndexes[3]] == "Infinite P2" then
+	elseif healthStrings[optionIndexes[mainIndexes["HP"]]] == "Infinite P2" then
 		memory.write_u16_le(0x7F36C, 0x0800)
 		memory.write_u16_le(0x7F36E, 0x3121)
 		memory.write_u16_le(0x7F3A0, 0x0005)
 		memory.write_u16_le(0x7F3A2, 0x1420)
-	elseif healthStrings[optionIndexes[3]] == "Infinite P1/P2" then
+	elseif healthStrings[optionIndexes[mainIndexes["HP"]]] == "Infinite P1/P2" then
 		memory.write_u16_le(0x7F36C, 0x0)
 		memory.write_u16_le(0x7F36E, 0x0)
 		memory.write_u16_le(0x7F3A0, 0x0005)
@@ -391,7 +542,7 @@
   
   -- handle timer
   function handleTimer()
-	if timerStrings[optionIndexes[4]] ==  "Infinite" then
+	if timerStrings[optionIndexes[mainIndexes["Timer"]]] ==  "Infinite" then
 		memory.write_u16_le(0x717BA, 0x2400)
 	else
 		memory.write_u16_le(0x717BA, 0xAE22)
@@ -400,6 +551,9 @@
   
   -- draw everything
   function handleGeneralGraphics()
+	if (optionIndexes[mainIndexes["HUD"]] ~= 1) then
+		drawHPValues()
+	end
 	if trainingOverlayVisible then
 		drawTrainingGui()
     end
@@ -412,6 +566,8 @@
    stageIndex = memory.read_u16_le(0x12AB20)
    inputTable=joypad.get(1)
    handleTrainingGui(inputTable, buttonPressedAtLastFrame)
+   updateScoreValues()
+   updateHPValues()
    if not trainingOverlayVisible then
 	handleDummy()
    end
