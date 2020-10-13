@@ -1,4 +1,4 @@
-    --[[Digimon Rumble Arena Training Mode Script v1.1.5
+    --[[Digimon Rumble Arena Training Mode Script v1.2
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
@@ -33,7 +33,7 @@
   local healthStrings = {"Normal", "Infinite P2", "Infinite P1", "Infinite P1/P2"}
   local timerStrings = {"Normal", "Infinite"}
   local yesnoString = {"Yes", "No"}
-  local hpDigiValues = {"No", "Percentage", "Absolute"}
+  local hpDigiValues = {"No", "Percentage", "Absolute Pixel Bar Size", "Scaled using Defence Value"}
   
   -- menu labels
   local labels = {}
@@ -138,17 +138,58 @@
   -- there is a reproducible way to get the health bars pixel values, using character mirror matches to gather data
   -- indexes as above
   local characterByteSizeForHealthBars = {}
+  characterByteSizeForHealthBars[0]		= 540768	-- Reapermon
   characterByteSizeForHealthBars[1]		= 540804	-- BlackWarGreymon
   characterByteSizeForHealthBars[2]		= 540780	-- Omnimon
+  characterByteSizeForHealthBars[3]		= 542012	-- Impmon
+  characterByteSizeForHealthBars[4]		= 540784	-- Beelzemon
+  characterByteSizeForHealthBars[5]		= 540848	-- Imperialdramon Paladin Mode
+  characterByteSizeForHealthBars[6]		= 542016	-- Gabumon
   characterByteSizeForHealthBars[7]		= 542000	-- Agumon
   characterByteSizeForHealthBars[8]		= 542048	-- Patamon
   characterByteSizeForHealthBars[9]		= 541984	-- Terriermon
   characterByteSizeForHealthBars[10]	= 541972	-- Guilmon
   characterByteSizeForHealthBars[11]	= 542044	-- Renamon
   characterByteSizeForHealthBars[12]	= 541976	-- Wormon
+  characterByteSizeForHealthBars[13]	= 542048	-- Veemon
   characterByteSizeForHealthBars[14]	= 541980	-- Gatomon
+  characterByteSizeForHealthBars[15]	= 540812	-- MetalGarurumon
   characterByteSizeForHealthBars[16]	= 540800	-- WarGreymon
+  characterByteSizeForHealthBars[17]	= 540776	-- Seraphimon
+  characterByteSizeForHealthBars[18]	= 540776	-- MegaGargomon
+  characterByteSizeForHealthBars[19]	= 540772	-- Gallantmon
+  characterByteSizeForHealthBars[20]	= 540796	-- Sakuyamon
   characterByteSizeForHealthBars[21]	= 540772	-- Stingmon
+  characterByteSizeForHealthBars[22]	= 540848	-- Imperialdramon
+  characterByteSizeForHealthBars[23]	= 540776	-- Magnadramon
+  
+  -- defence multiplier, as labbed by Teseo (Digimon Rumble Arena Discord)
+  -- indexes as above
+  local healthMultiplier = {}
+  healthMultiplier[18]		= 1.58	-- MegaGargomon
+  healthMultiplier[15]		= 1.53	-- MetalGarurumon
+  healthMultiplier[0]		= 1.44	-- Reapermon
+  healthMultiplier[16]		= 1.44	-- WarGreymon
+  healthMultiplier[17]		= 1.44	-- Seraphimon
+  healthMultiplier[19]		= 1.44	-- Gallantmon
+  healthMultiplier[2]		= 1.42	-- Omnimon
+  healthMultiplier[20]		= 1.36	-- Sakuyamon
+  healthMultiplier[22]		= 1.36	-- Imperialdramon
+  healthMultiplier[23]		= 1.36	-- Magnadramon
+  healthMultiplier[4]		= 1.36	-- Beelzemon
+  healthMultiplier[5]		= 1.33	-- Imperialdramon Paladin Mode
+  healthMultiplier[6]		= 1.33	-- Gabumon
+  healthMultiplier[1]		= 1.31	-- BlackWarGreymon
+  healthMultiplier[21]		= 1.31	-- Stingmon
+  healthMultiplier[7]		= 1.31	-- Agumon
+  healthMultiplier[10]		= 1.31	-- Guilmon
+  healthMultiplier[14]		= 1.31	-- Gatomon
+  healthMultiplier[9]		= 1.19	-- Terriermon
+  healthMultiplier[13]		= 1.19	-- Veemon
+  healthMultiplier[3]		= 1.14	-- Impmon
+  healthMultiplier[8]		= 1.08	-- Patamon
+  healthMultiplier[11]		= 1.05	-- Renamon
+  healthMultiplier[12]		= 1.00	-- Wormon
   
   -- draw GUI
   function drawTrainingGui()
@@ -179,6 +220,11 @@
 		gui.drawText(454, 430, tostring(player2HP), 0xffffffff, 0xff000000, 16, null, null, "left")
 		gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
 		gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
+	  elseif optionIndexes[mainIndexes["HUD"]] == 4 then
+		gui.drawText(356, 430, tostring(math.floor(healthMultiplier[player1CharacterIndex] * player1HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "right")
+		gui.drawText(454, 430, tostring(math.floor(healthMultiplier[player2CharacterIndex] * player2HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "left")
+		gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+		gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
 	end
   end
   

@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.1
+# Digimon Rumble Arena - Training Tools v1.2
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
@@ -15,13 +15,16 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 
 # Known issues
 * Calling the GUI during a loading screen can cause the game to freeze;
-* ~~There is no known way (yet) to have options for "move towards"/"move away" commands, as the memory address where the position of the second character is stored is matchup-specific~~ [fixed as of version 1.1]
 * I couldn't manage to make 2-Jabs and 3-Jabs combos work properly;
 * This script works only if the controls for the Player 2 character are kept to default, in-game;
-* I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too.
+* I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too;
+* The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;
+* When the game is set to full screen, the training options won't be scaled, causing visual artifacts.
 
 # Acknowledgements
-* Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible
-* The [Digimon Rumble Arena Discord server](https://discord.gg/DTpRqwd), who helped me figuring out which tools to use
-* This [handy website](http://bsfree.shadowflareindustries.com/index.php?s=1&d=8&g=8415&c=20939) where I could retrieve cheat codes for infinite health and frozen timer. Credits to the user StalkerX for posting the codes I used in that part of the script.
-* Yuri Bacon for pointing me in the right direction and supplying some of the material I used for this script
+* Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
+* The [Digimon Rumble Arena Discord server](https://discord.gg/DTpRqwd), who helped me figuring out which tools to use;
+* This [handy website](http://bsfree.shadowflareindustries.com/index.php?s=1&d=8&g=8415&c=20939) where I could retrieve cheat codes for infinite health and frozen timer. Credits to the user StalkerX for posting the codes I used in that part of the script;
+* Yuri Bacon for pointing me in the right direction and supplying some of the material I used for this script;
+* Teseo22 for retrieving all defence values by sheer determination with a long, daunting sequence of experiments;
+* Connor (ncea) for reporting the issues with BizHawk 2.2 and general improvement suggestions
