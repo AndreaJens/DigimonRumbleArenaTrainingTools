@@ -100,6 +100,17 @@
   
   local player1IsEvo = false
   local player2IsEvo = false
+  local gameIsPaused = false
+  local isInBattleScreen = false
+  local player1DigiNoDecreaseFrameCounter = 0
+  local player2DigiNoDecreaseFrameCounter = 0
+  
+  -- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
+  local pauseMemoryAddress = 0x05F880
+  
+  -- I don't have ANY idea of what this memory address controls, only that it is always 0 in chara select screen and always 1 in battleScreenCanary
+  -- probably an asset loading flag, as it is set only once during the loading screen and never touched again
+  local characterSelectionScreenCanary = 0x065048 --0x0641B4
   
   -- matchup tables for extra values --
   -- the character selected by Player 1 is stored at the memory address 0x12AA4C
@@ -222,6 +233,20 @@
   evoFormIndex[22]	= 22	-- Imperialdramon
   evoFormIndex[23]	= 23	-- Magnadramon
   
+  -- status variables for player 1. To get the addresses for player 2, calculate the offset between  p2PositionMemoryValues[p1Index] - 0x107AC8 and
+  -- add it to the below value
+  local statusP1Address 		 = 0x107994
+  local moveIdP1Address 		 = 0x10785C
+  local moveFrameNumberP1Address = 0x107860
+  
+  -- statuses recogized so far
+  local characterStatus = {}
+  characterStatus["histun"] = 13
+  characterStatus["juggled"] = 14
+  characterStatus["gndKnockdown"] = 16
+  characterStatus["airKnockdown"] = 17
+  characterStatus["recovery"] = 18
+  
   -- draw GUI
   function drawTrainingGui()
 	gui.drawBox(0, 0, 960, 480, null, 0xaaaaaaaa)
@@ -282,18 +307,38 @@
 		player2Digi = memory.read_u16_le(addressHPPlayer2 + 16)
 		-- easiest marker to determine DigiEvolution: if Digi is going down, it's most likely an Evo (or the game got paused)
 		if player1DigiLastFrame > player1Digi then
+			player1DigiNoDecreaseFrameCounter = 0
 			player1IsEvo = true
 		end
 		
 		if player2DigiLastFrame > player2Digi then
+			player2DigiNoDecreaseFrameCounter = 0
 			player2IsEvo = true
 		end
 		-- restore Evo status when Digi reaches 0 - doesn't work when a new round starts
 		if player1Digi == 0 then
 			player1IsEvo = false
+			player1DigiNoDecreaseFrameCounter = 0
 		end
 		if player2Digi == 0 then
 			player2IsEvo = false
+			player2DigiNoDecreaseFrameCounter = 0
+		end
+		-- if the Digi didn't go down in the last 6 frames, then consider the digimon in a base state
+		if player1DigiLastFrame <= player1Digi then
+			player1DigiNoDecreaseFrameCounter = player1DigiNoDecreaseFrameCounter + 1
+			if (player1DigiNoDecreaseFrameCounter > 60) then
+				player1IsEvo = false
+				player1DigiNoDecreaseFrameCounter = 0
+			end
+		end
+		
+		if player2DigiLastFrame <= player2Digi then
+			player2DigiNoDecreaseFrameCounter = player2DigiNoDecreaseFrameCounter + 1
+			if (player2DigiNoDecreaseFrameCounter > 60) then
+				player2IsEvo = false
+				player2DigiNoDecreaseFrameCounter = 0
+			end
 		end
 	end
   end
@@ -661,17 +706,36 @@
   
   -- main routine
   while true do
+	-- check if we are in the character selection screen or in the normal battle menu
+	local battleScreenCanary = memory.read_u32_le(characterSelectionScreenCanary)
+	if battleScreenCanary == 1 then
+		isInBattleScreen = true
+	else
+		isInBattleScreen = false
+	end
 	player1CharacterIndex = memory.read_u16_le(0x12AA4C)
 	player2CharacterIndex = memory.read_u16_le(0x12AA84)
 	stageIndex = memory.read_u16_le(0x12AB20)
-	inputTable=joypad.get(1)
-	handleTrainingGui(inputTable, buttonPressedAtLastFrame)
-	updateScoreValues()
-	updateHPValues()
-	if not trainingOverlayVisible then
-		handleDummy()
+	if isInBattleScreen then
+		-- check if the game is paused
+		local pauseMenuCanary = memory.read_u32_le(pauseMemoryAddress)
+		if pauseMenuCanary == 1 then
+			gameIsPaused = true
+		else
+			gameIsPaused = false
+		end
+		-- get input
+		inputTable=joypad.get(1)
+		handleTrainingGui(inputTable, buttonPressedAtLastFrame)
+		if not gameIsPaused then
+			updateScoreValues()
+			updateHPValues()
+			if not trainingOverlayVisible then
+				handleDummy()
+			end
+		end
+		buttonPressedAtLastFrame = inputTable;
+		handleGeneralGraphics()
 	end
-	buttonPressedAtLastFrame = inputTable;
-	handleGeneralGraphics()
 	emu.frameadvance()
   end
