@@ -1,10 +1,13 @@
+v 1.2.1 (13.10.2020)
+* 	Added (partial) support for Rookie/Evo switch for absolute health values using the defence stat;
+
 v 1.2 (13.10.2020)
 * 	Added all missing HP values
 *	Added defence scaling option for showing HP values
 
 v 1.1.5 (12.10.2020)
 * 	Added GUI handles for showing HP and Digi (partial support around the cast)
-*	Added "action after block" option
+*	Added "action after damage" option
 *	General code refactoring
 
 v 1.1 (11.10.2020)

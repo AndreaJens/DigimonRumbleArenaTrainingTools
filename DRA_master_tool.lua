@@ -98,6 +98,9 @@
   local isPerformingAfterDamageAction = false
   local afterDamageActionTimer = 0
   
+  local player1IsEvo = false
+  local player2IsEvo = false
+  
   -- matchup tables for extra values --
   -- the character selected by Player 1 is stored at the memory address 0x12AA4C
   -- the character selected by Player 2 is stored at the memory address 0x12AA84
@@ -191,6 +194,34 @@
   healthMultiplier[11]		= 1.05	-- Renamon
   healthMultiplier[12]		= 1.00	-- Wormon
   
+  -- Digivolution marker - used for applying the correct defence value multiplier if the character is in a Evo form
+  -- indexes as above
+  local evoFormIndex = {}
+  evoFormIndex[0]	=  0	-- Reapermon
+  evoFormIndex[1]	=  1	-- BlackWarGreymon
+  evoFormIndex[2]	=  2	-- Omnimon
+  evoFormIndex[3]	=  4	-- Impmon
+  evoFormIndex[4]	=  4	-- Beelzemon
+  evoFormIndex[5]	=  5	-- Imperialdramon Paladin Mode
+  evoFormIndex[6]	= 15	-- Gabumon
+  evoFormIndex[7]	= 16	-- Agumon
+  evoFormIndex[8]	= 17	-- Patamon
+  evoFormIndex[9]	= 18	-- Terriermon
+  evoFormIndex[10]	= 19	-- Guilmon
+  evoFormIndex[11]	= 20	-- Renamon
+  evoFormIndex[12]	= 21	-- Wormon
+  evoFormIndex[13]	= 22	-- Veemon
+  evoFormIndex[14]	= 23	-- Gatomon
+  evoFormIndex[15]	= 15	-- MetalGarurumon
+  evoFormIndex[16]	= 16	-- WarGreymon
+  evoFormIndex[17]	= 17	-- Seraphimon
+  evoFormIndex[18]	= 18	-- MegaGargomon
+  evoFormIndex[19]	= 19	-- Gallantmon
+  evoFormIndex[20]	= 20	-- Sakuyamon
+  evoFormIndex[21]	= 21	-- Stingmon
+  evoFormIndex[22]	= 22	-- Imperialdramon
+  evoFormIndex[23]	= 23	-- Magnadramon
+  
   -- draw GUI
   function drawTrainingGui()
 	gui.drawBox(0, 0, 960, 480, null, 0xaaaaaaaa)
@@ -221,8 +252,16 @@
 		gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
 		gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
 	  elseif optionIndexes[mainIndexes["HUD"]] == 4 then
-		gui.drawText(356, 430, tostring(math.floor(healthMultiplier[player1CharacterIndex] * player1HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "right")
-		gui.drawText(454, 430, tostring(math.floor(healthMultiplier[player2CharacterIndex] * player2HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "left")
+		healthMultiplierPlayer1 = healthMultiplier[player1CharacterIndex]
+		healthMultiplierPlayer2 = healthMultiplier[player2CharacterIndex]
+		if player1IsEvo then
+			healthMultiplierPlayer1 = healthMultiplier[evoFormIndex[player1CharacterIndex]]
+		end
+		if player2IsEvo then
+			healthMultiplierPlayer2 = healthMultiplier[evoFormIndex[player2CharacterIndex]]
+		end
+		gui.drawText(356, 430, tostring(math.floor(healthMultiplierPlayer1 * player1HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "right")
+		gui.drawText(454, 430, tostring(math.floor(healthMultiplierPlayer2 * player2HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "left")
 		gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
 		gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
 	end
@@ -241,6 +280,21 @@
 		player2HP = memory.read_u16_le(addressHPPlayer2)
 		player1Digi = memory.read_u16_le(addressHPPlayer1 + 16)
 		player2Digi = memory.read_u16_le(addressHPPlayer2 + 16)
+		-- easiest marker to determine DigiEvolution: if Digi is going down, it's most likely an Evo (or the game got paused)
+		if player1DigiLastFrame > player1Digi then
+			player1IsEvo = true
+		end
+		
+		if player2DigiLastFrame > player2Digi then
+			player2IsEvo = true
+		end
+		-- restore Evo status when Digi reaches 0 - doesn't work when a new round starts
+		if player1Digi == 0 then
+			player1IsEvo = false
+		end
+		if player2Digi == 0 then
+			player2IsEvo = false
+		end
 	end
   end
   
@@ -607,17 +661,17 @@
   
   -- main routine
   while true do
-   player1CharacterIndex = memory.read_u16_le(0x12AA4C)
-   player2CharacterIndex = memory.read_u16_le(0x12AA84)
-   stageIndex = memory.read_u16_le(0x12AB20)
-   inputTable=joypad.get(1)
-   handleTrainingGui(inputTable, buttonPressedAtLastFrame)
-   updateScoreValues()
-   updateHPValues()
-   if not trainingOverlayVisible then
-	handleDummy()
-   end
-   buttonPressedAtLastFrame = inputTable;
-   handleGeneralGraphics()
-   emu.frameadvance()
+	player1CharacterIndex = memory.read_u16_le(0x12AA4C)
+	player2CharacterIndex = memory.read_u16_le(0x12AA84)
+	stageIndex = memory.read_u16_le(0x12AB20)
+	inputTable=joypad.get(1)
+	handleTrainingGui(inputTable, buttonPressedAtLastFrame)
+	updateScoreValues()
+	updateHPValues()
+	if not trainingOverlayVisible then
+		handleDummy()
+	end
+	buttonPressedAtLastFrame = inputTable;
+	handleGeneralGraphics()
+	emu.frameadvance()
   end

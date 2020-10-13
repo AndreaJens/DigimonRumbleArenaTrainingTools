@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.2
+# Digimon Rumble Arena - Training Tools v1.2.1
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
@@ -19,7 +19,8 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * This script works only if the controls for the Player 2 character are kept to default, in-game;
 * I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too;
 * The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;
-* When the game is set to full screen, the training options won't be scaled, causing visual artifacts.
+* When the game is set to full screen, the training options won't be scaled, causing visual artifacts;
+* Absolute health values with support for Rookie/Evo transitions is still only partially working, as it is tricky to determine when a Rookie has become an Evo and viceversa, without direct access to the code. This feature is therefore only available in the master branch and not in the official 1.2 release.
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
