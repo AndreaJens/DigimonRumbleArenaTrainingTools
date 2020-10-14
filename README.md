@@ -29,7 +29,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too;
 * The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;
 * When the game is set to full screen, the training options won't be scaled, causing visual artifacts;
-* Actions after damage are still pretty buggy, as I cannot syncrhonize them with the end of the hitsun. So far, block and crouch block work flawlessly, but other actions may have consistent delay.
+* Actions after damage are still pretty buggy, as I cannot synchronize them with the end of the hitsun. So far, block and crouch block work flawlessly, but other actions may have consistent delay.
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
@@ -37,4 +37,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * This [handy website](http://bsfree.shadowflareindustries.com/index.php?s=1&d=8&g=8415&c=20939) where I could retrieve cheat codes for infinite health and frozen timer. Credits to the user StalkerX for posting the codes I used in that part of the script;
 * Yuri Bacon for pointing me in the right direction and supplying some of the material I used for this script;
 * Teseo22 for retrieving all defence values by sheer determination with a long, daunting sequence of experiments;
-* Connor (ncea) for reporting the issues with BizHawk 2.2 and general improvement suggestions
+* Connor (ncea) for reporting the issues with BizHawk 2.2 and general improvement suggestions.
+
+# Development journal
+* An explanation of why I did this and how I figured out most of the stuff in this script can be found in a short-ish Google Doc [here](https://docs.google.com/document/d/1liomAm0ulcBb3i3iuVjsLtElVEWNgxwlazKeHJq3kug/edit?usp=sharing)
