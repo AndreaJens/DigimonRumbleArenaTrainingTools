@@ -13,6 +13,7 @@
   mainIndexes["Timer"] 		= 5
   mainIndexes["HUD"] 		= 6
   mainIndexes["AftDmg"]		= 3
+  mainIndexes["StateAtk"]	= 7
   
   local trainingOverlayVisible = false
   local inputTable={}
@@ -27,6 +28,7 @@
   optionIndexes[mainIndexes["Timer"]] 		= 1
   optionIndexes[mainIndexes["HUD"]] 		= 1
   optionIndexes[mainIndexes["AftDmg"]] 		= 2
+  optionIndexes[mainIndexes["StateAtk"]] 	= 2
   
   local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
   local movementStrings = {"None", "Crouch", "Walk Towards", "Walk Away", "Dash Towards", "Dash Away", "Hop", "Jump", "High Jump"}
@@ -43,6 +45,7 @@
   labels[mainIndexes["Timer"]] 		= "Timer"
   labels[mainIndexes["HUD"]] 		= "Show HP/Digi"
   labels[mainIndexes["AftDmg"]] 	= "Act only after Damage"
+  labels[mainIndexes["StateAtk"]] 	= "Show State/Action"
   
   -- menu values
   local optionValueslists = {}
@@ -52,6 +55,7 @@
   optionValueslists[mainIndexes["Timer"]] 		= timerStrings
   optionValueslists[mainIndexes["HUD"]] 		= hpDigiValues
   optionValueslists[mainIndexes["AftDmg"]] 		= yesnoString
+  optionValueslists[mainIndexes["StateAtk"]] 	= yesnoString
   
   -- menu sizes
   local optionSizes = {}
@@ -61,6 +65,7 @@
   optionSizes[mainIndexes["Timer"]] 	= table.getn(timerStrings)
   optionSizes[mainIndexes["HUD"]] 		= table.getn(hpDigiValues)
   optionSizes[mainIndexes["AftDmg"]] 	= table.getn(yesnoString)
+  optionSizes[mainIndexes["StateAtk"]] 	= table.getn(yesnoString)
    
   local labelsSize = table.getn(labels)
   local actionTimer = 0
@@ -141,7 +146,7 @@
   p2PositionMemoryValues[14] = 0x107F7C  -- P1 Gatomon
   p2PositionMemoryValues[15] = 0x107FA4  -- P1 MetalGarurumon
   p2PositionMemoryValues[16] = 0x107F98  -- P1 WarGreymon
-  p2PositionMemoryValues[16] = 0x107F80  -- P1 Seraphimon
+  p2PositionMemoryValues[17] = 0x107F80  -- P1 Seraphimon
   p2PositionMemoryValues[18] = 0x107F80  -- P1 MegaGargomon
   p2PositionMemoryValues[19] = 0x107F7C  -- P1 Gallantmon
   p2PositionMemoryValues[20] = 0x107F94  -- P1 Sakuyamon
@@ -241,11 +246,45 @@
   
   -- statuses recogized so far
   local characterStatus = {}
-  characterStatus["histun"] = 13
-  characterStatus["juggled"] = 14
-  characterStatus["gndKnockdown"] = 16
-  characterStatus["airKnockdown"] = 17
-  characterStatus["recovery"] = 18
+  characterStatus[0]  = "idle"
+  characterStatus[1]  = "walking"
+  characterStatus[2]  = "dash"
+  characterStatus[3]  = "jump"
+  characterStatus[4]  = "free-fall"
+  characterStatus[12] = "block"
+  characterStatus[13] = "hitstun"
+  characterStatus[14] = "air juggle"
+  characterStatus[15] = "stun"
+  characterStatus[16] = "knockdown"
+  characterStatus[17] = "air knockdown"
+  characterStatus[18] = "wake up"
+  characterStatus[19] = "crouching"
+  characterStatus[21] = "crouch block"
+  characterStatus[28] = "victory"
+  characterStatus[30] = "intro"
+  
+  -- moves recogized so far
+  local characterMoves = {}
+  characterMoves[20] = "melee 1"
+  characterMoves[21] = "melee 2"
+  characterMoves[22] = "melee 3"
+  characterMoves[23] = "launcher"
+  characterMoves[24] = "grab"
+  characterMoves[25] = "sweep"
+  characterMoves[26] = "dash attack"
+  characterMoves[27] = "jump launcher"
+  characterMoves[28] = "jump attack"
+  characterMoves[29] = "special 1"
+  characterMoves[30] = "air special 1"
+  characterMoves[31] = "special 2"
+  characterMoves[32] = "air special 2"
+  characterMoves[33] = "super"
+  characterMoves[34] = "air super"
+  
+  -- calculate offsetted address
+  function calculatePlayer2OffsetAddress(originalAddress, player1Index)
+	return (originalAddress + p2PositionMemoryValues[player1Index] - 0x107AC8)
+  end
   
   -- draw GUI
   function drawTrainingGui()
@@ -266,30 +305,54 @@
   
   -- draw HP values
   function drawHPValues()
-	  if optionIndexes[mainIndexes["HUD"]] == 2 then
-	    gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
-		gui.drawText(356, 430, tostring(math.floor(player1HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
-		gui.drawText(454, 430, tostring(math.floor(player2HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
-		gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
-	  elseif optionIndexes[mainIndexes["HUD"]] == 3 then
-		gui.drawText(356, 430, tostring(player1HP), 0xffffffff, 0xff000000, 16, null, null, "right")
-		gui.drawText(454, 430, tostring(player2HP), 0xffffffff, 0xff000000, 16, null, null, "left")
-		gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
-		gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
-	  elseif optionIndexes[mainIndexes["HUD"]] == 4 then
-		healthMultiplierPlayer1 = healthMultiplier[player1CharacterIndex]
-		healthMultiplierPlayer2 = healthMultiplier[player2CharacterIndex]
-		if player1IsEvo then
-			healthMultiplierPlayer1 = healthMultiplier[evoFormIndex[player1CharacterIndex]]
+		if optionIndexes[mainIndexes["HUD"]] == 2 then
+			gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(356, 430, tostring(math.floor(player1HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 430, tostring(math.floor(player2HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+		elseif optionIndexes[mainIndexes["HUD"]] == 3 then
+			gui.drawText(356, 430, tostring(player1HP), 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 430, tostring(player2HP), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
+		elseif optionIndexes[mainIndexes["HUD"]] == 4 then
+			healthMultiplierPlayer1 = healthMultiplier[player1CharacterIndex]
+			healthMultiplierPlayer2 = healthMultiplier[player2CharacterIndex]
+			if player1IsEvo then
+				healthMultiplierPlayer1 = healthMultiplier[evoFormIndex[player1CharacterIndex]]
+			end
+			if player2IsEvo then
+				healthMultiplierPlayer2 = healthMultiplier[evoFormIndex[player2CharacterIndex]]
+			end
+			gui.drawText(356, 430, tostring(math.floor(healthMultiplierPlayer1 * player1HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 430, tostring(math.floor(healthMultiplierPlayer2 * player2HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
 		end
-		if player2IsEvo then
-			healthMultiplierPlayer2 = healthMultiplier[evoFormIndex[player2CharacterIndex]]
+  end
+  
+  -- draw character action & frame
+  function drawStateAndFrame()
+		local player1State = memory.read_u32_le(statusP1Address)
+		local player2State = memory.read_u32_le(calculatePlayer2OffsetAddress(statusP1Address, player1CharacterIndex))
+		local player1Move = memory.read_u32_le(moveIdP1Address)
+		local player2Move = memory.read_u32_le(calculatePlayer2OffsetAddress(moveIdP1Address, player1CharacterIndex))
+		local player1MoveFrames = memory.read_u32_le(moveFrameNumberP1Address)
+		local player2MoveFrames = memory.read_u32_le(calculatePlayer2OffsetAddress(moveFrameNumberP1Address, player1CharacterIndex))
+		if characterStatus[player1State] ~= nil then
+			gui.drawText(356, 360, characterStatus[player1State], 0xffffffff, 0xff000000, 16, null, null, "right")
 		end
-		gui.drawText(356, 430, tostring(math.floor(healthMultiplierPlayer1 * player1HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "right")
-		gui.drawText(454, 430, tostring(math.floor(healthMultiplierPlayer2 * player2HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "left")
-		gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
-		gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
-	end
+		if characterStatus[player2State] ~= nil then
+			gui.drawText(454, 360, characterStatus[player2State], 0xffffffff, 0xff000000, 16, null, null, "left")
+		end
+		if characterMoves[player1Move] ~= nil then
+			gui.drawText(110, 460, characterMoves[player1Move], 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(356, 460, "frame:" .. tostring(player1MoveFrames), 0xffffffff, 0xff000000, 16, null, null, "right")
+		end
+		if characterMoves[player2Move] ~= nil then
+			gui.drawText(690, 460, characterMoves[player2Move], 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 460, "frame:" .. tostring(player2MoveFrames), 0xffffffff, 0xff000000, 16, null, null, "left")
+		end
   end
   
   -- update HP values
@@ -622,11 +685,15 @@
   
   -- handle dummy actions
   function handleDummy()
-	if (isPerformingAfterDamageAction) then
-		afterDamageActionTimer = afterDamageActionTimer + 1
-		if afterDamageActionTimer > 120 then
-			afterDamageActionTimer = 0
-			isPerformingAfterDamageAction = false
+	if actOnlyAfterDamage then 
+		if (isPerformingAfterDamageAction) then
+			afterDamageActionTimer = afterDamageActionTimer + 1
+			if afterDamageActionTimer > 120 then
+				afterDamageActionTimer = 0
+				isPerformingAfterDamageAction = false
+			end
+		else
+			handleDummyMovement()
 		end
 	end
 	if ((not actOnlyAfterDamage) or (actOnlyAfterDamage and isPerformingAfterDamageAction)) then
@@ -697,7 +764,14 @@
   -- draw everything
   function handleGeneralGraphics()
 	if (optionIndexes[mainIndexes["HUD"]] ~= 1) then
-		drawHPValues()
+		if player1HP > 0 and player2HP > 0 then
+			drawHPValues()
+		end
+	end
+	if (optionIndexes[mainIndexes["StateAtk"]] ~= 2) then
+		if player1HP > 0 and player2HP > 0 then
+			drawStateAndFrame()
+		end
 	end
 	if trainingOverlayVisible then
 		drawTrainingGui()

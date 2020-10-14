@@ -1,5 +1,12 @@
+v 1.3 (14.10.2020)
+*   Added full support for Rookie/Evo switch for absolute health values using the defence stat
+*   Added character states and moves in the HUD
+*   Fixed movement in "After Damage Action"
+*   Deactivated menu outside of battle
+*   Fixed minor bug with Seraphimon
+
 v 1.2.1 (13.10.2020)
-* 	Added (partial) support for Rookie/Evo switch for absolute health values using the defence stat;
+* 	Added (partial) support for Rookie/Evo switch for absolute health values using the defence stat
 
 v 1.2 (13.10.2020)
 * 	Added all missing HP values
