@@ -7,21 +7,25 @@
 
 	-- global variables
 	local mainIndexes = {}
-		mainIndexes["Action"] 		= 1
-		mainIndexes["Movement"] 	= 2
-		mainIndexes["HP"] 			= 4
-		mainIndexes["Timer"] 		= 5
-		mainIndexes["HUD"] 			= 6
-		mainIndexes["AftDmg"]		= 3
-		mainIndexes["StateAtk"]		= 7
+		mainIndexes["Dummy"] 		= 1
+		mainIndexes["Action"] 		= 2
+		mainIndexes["Movement"] 	= 3
+		mainIndexes["HP"] 			= 5
+		mainIndexes["Timer"] 		= 6
+		mainIndexes["HUD"] 			= 7
+		mainIndexes["AftDmg"]		= 4
+		mainIndexes["StateAtk"]		= 8
 
 	local trainingOverlayVisible = false
-	local inputTable={}
-	local buttonPressedAtLastFrame = {}
+	local inputTableP1={}
+	local inputTableP2={}
+	local buttonPressedAtLastFrameP1 = {}
+	local buttonPressedAtLastFrameP2 = {}
 
 	local trainingOptionIndex = 1
 
 	local optionIndexes = {}
+		optionIndexes[mainIndexes["Dummy"]] 		= 2
 		optionIndexes[mainIndexes["Action"]] 		= 1
 		optionIndexes[mainIndexes["Movement"]] 		= 1
 		optionIndexes[mainIndexes["HP"]] 			= 1
@@ -35,10 +39,12 @@
 	local healthStrings = {"Normal", "Infinite P2", "Infinite P1", "Infinite P1/P2"}
 	local timerStrings = {"Normal", "Infinite"}
 	local yesnoString = {"Yes", "No"}
+	local dummyStrings = {"Player 1", "Player 2"}
 	local hpDigiValues = {"No", "Percentage", "Absolute Pixel Bar Size", "Scaled using Defence Value"}
 
 	-- menu labels
 	local labels = {}
+		labels[mainIndexes["Dummy"]] 		= "Dummy Player"
 		labels[mainIndexes["Action"]] 		= "Dummy Action"
 		labels[mainIndexes["Movement"]] 	= "Dummy Movement"
 		labels[mainIndexes["HP"]] 			= "Health Bars"
@@ -49,6 +55,7 @@
 
 	-- menu values
 	local optionValueslists = {}
+		optionValueslists[mainIndexes["Dummy"]] 		= dummyStrings
 		optionValueslists[mainIndexes["Action"]] 		= actionStrings
 		optionValueslists[mainIndexes["Movement"]] 		= movementStrings
 		optionValueslists[mainIndexes["HP"]] 			= healthStrings
@@ -59,6 +66,7 @@
 
 	-- menu sizes
 	local optionSizes = {}
+		optionSizes[mainIndexes["Dummy"]] 		= table.getn(dummyStrings)
 		optionSizes[mainIndexes["Action"]] 		= table.getn(actionStrings)
 		optionSizes[mainIndexes["Movement"]] 	= table.getn(movementStrings)
 		optionSizes[mainIndexes["HP"]] 			= table.getn(healthStrings)
@@ -119,6 +127,9 @@
 	local player2Move = 1
 	local player1MoveFrames = 0
 	local player2MoveFrames = 0
+	
+	local dummyPlayer = 2
+	local activePlayer = 1
 
 	-- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
 	local pauseMemoryAddress = 0x05F880
@@ -437,7 +448,16 @@
 		player2Move = memory.read_u32_le(calculatePlayer2OffsetAddress(moveIdP1Address, player1CharacterIndex))
 		player1MoveFrames = memory.read_u32_le(moveFrameNumberP1Address)
 		player2MoveFrames = memory.read_u32_le(calculatePlayer2OffsetAddress(moveFrameNumberP1Address, player1CharacterIndex))
-		if (isHitstun(player2StateLastFrame) and not isHitstun(player2State)) then
+		local dummyState = player2State
+		local dummyStateLastFrame = player2StateLastFrame
+		if activePlayer == 2 then
+			dummyState = player1State
+			dummyStateLastFrame = player1StateLastFrame
+		end
+		if (not isHitstun(dummyStateLastFrame) and isHitstun(dummyState)) then
+			prepareAfterDamageActionCheck = true
+			afterDamageActionTimer = 0
+		elseif (isHitstun(dummyStateLastFrame) and not isHitstun(dummyState)) then
 			actionTimer = 0
 			afterDamageActionTimer = 0
 			movementTimer = 0
@@ -458,6 +478,8 @@
 		player2ScoreLastFrame = player2Score
 		player1Score = memory.read_u32_le(scorePlayer1Address)
 		player2Score = memory.read_u32_le(scorePlayer2Address)
+		--[[
+		-- with the hitstun indication, probably we can get rid of the score now
 		-- player 1 score increase = player 2 was hit
 		if (actOnlyAfterDamage and player1Score > player1ScoreLastFrame) then
 			prepareAfterDamageActionCheck = true
@@ -468,6 +490,7 @@
 			memory.write_u32_le(scorePlayer1Address, 0)
 			memory.write_u32_le(scorePlayer2Address, 0)
 		end 
+		]]--
 	end
 
 	-- handle "act after damage"
@@ -489,6 +512,17 @@
 		movementTimer = 0
 		delayMovementTimer = 0
 	end
+	
+	-- handle new action (reset variables)
+	function handleDummyPlayer()
+		if optionIndexes[mainIndexes["Dummy"]] == 1 then
+			activePlayer = 2
+			dummyPlayer = 1
+		else
+			activePlayer = 1
+			dummyPlayer = 2
+		end
+	end
 
 	-- handle menu exit (sets all new values in memory)
 	function handleSelection()
@@ -496,6 +530,7 @@
 		handleNewAction()
 		handleHealthBars()
 		handleTimer()
+		handleDummyPlayer()
 	end
 
 	-- update GUI and selection from Menu
@@ -542,10 +577,10 @@
 	-- process action which requires one single input
 	function singleActionSet(inputTableOn, inputTableOff)
 		if actionTimer < 3 then
-			joypad.set(inputTableOn, 2)
+			joypad.set(inputTableOn, dummyPlayer)
 			delayTimer = 0
 		elseif actionTimer == 4 then
-			joypad.set(inputTableOff, 2)
+			joypad.set(inputTableOff, dummyPlayer)
 		elseif actionTimer > 3 then
 			delayTimer = delayTimer + 1
 		end
@@ -558,10 +593,10 @@
 		-- process jump
 		function jumpSet(frameOfPressure)
 		if movementTimer < frameOfPressure then
-			joypad.set({Cross=true}, 2)
+			joypad.set({Cross=true}, dummyPlayer)
 			delayMovementTimer = 0
 		elseif movementTimer == frameOfPressure then
-			joypad.set({Cross=false}, 2)
+			joypad.set({Cross=false}, dummyPlayer)
 		elseif movementTimer > frameOfPressure then
 			delayMovementTimer = delayMovementTimer + 1
 		end
@@ -574,12 +609,12 @@
 	-- process dash
 	function dashRight()
 		if movementTimer < 4 then
-			joypad.set({Right=true}, 2)
+			joypad.set({Right=true}, dummyPlayer)
 			delayMovementTimer = 0
 		elseif movementTimer < 6 then
-			joypad.set({Right=false}, 2)
+			joypad.set({Right=false}, dummyPlayer)
 		elseif movementTimer < 10 then
-			joypad.set({Right=true}, 2)
+			joypad.set({Right=true}, dummyPlayer)
 		elseif movementTimer > 10 then
 			delayMovementTimer = delayMovementTimer + 1
 		end
@@ -591,12 +626,12 @@
 
 	function dashLeft()
 		if movementTimer < 4 then
-			joypad.set({Left=true}, 2)
+			joypad.set({Left=true}, dummyPlayer)
 			delayMovementTimer = 0
 		elseif movementTimer < 6 then
-			joypad.set({Left=false}, 2)
+			joypad.set({Left=false}, dummyPlayer)
 		elseif movementTimer < 10 then
-			joypad.set({Left=true}, 2)
+			joypad.set({Left=true}, dummyPlayer)
 		elseif movementTimer > 10 then
 			delayMovementTimer = delayMovementTimer + 1
 		end
@@ -609,12 +644,12 @@
 	-- process sweep
 	function performSweep()
 		if actionTimer < 3 then
-			joypad.set({Down=true}, 2)
+			joypad.set({Down=true}, dummyPlayer)
 			delayTimer = 0
 		elseif actionTimer < 9 then
-			joypad.set({Down=true, Square=true}, 2)
+			joypad.set({Down=true, Square=true}, dummyPlayer)
 		elseif actionTimer == 10 then
-			joypad.set({Down=false, Square=false}, 2)
+			joypad.set({Down=false, Square=false}, dummyPlayer)
 		elseif actionTimer > 10 then
 			delayTimer = delayTimer + 1
 		end
@@ -626,13 +661,13 @@
 
 	-- process up jab
 	function performLauncher()
-		if actionTimer == 1 then
-			joypad.set({Up=true}, 2)
+		if actionTimer < 2 then
+			joypad.set({Up=true}, dummyPlayer)
 			delayTimer = 0
-		elseif actionTimer == 2 then
-			joypad.set({Up=true, Square=true}, 2)
+		elseif actionTimer < 9 then
+			joypad.set({Up=true, Square=true}, dummyPlayer)
 		elseif actionTimer == 10 then
-			joypad.set({Up=false, Square=false}, 2)
+			joypad.set({Up=false, Square=false}, dummyPlayer)
 		elseif actionTimer > 10 then
 			delayTimer = delayTimer + 1
 		end
@@ -652,32 +687,39 @@
 			player1X = 0
 			player2X = 1
 		end
+		-- use variables for abstracting which player to control
+		local activePlayerX = player1X
+		local dummyPlayerX = player2X
+		if activePlayer == 2 then
+			activePlayerX = player2X
+			dummyPlayerX = player1X
+		end
 		if movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Towards" then
-			if (player1X > player2X) then
-				joypad.set({Right=true}, 2)
-			elseif (player1X < player2X) then
-				joypad.set({Left=true}, 2)
+			if (activePlayerX > dummyPlayerX) then
+				joypad.set({Right=true}, dummyPlayer)
+			elseif (activePlayerX < dummyPlayerX) then
+				joypad.set({Left=true}, dummyPlayer)
 			end
 		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Away" then
-			if (player1X > player2X) then
-				joypad.set({Left=true}, 2)
-			elseif (player1X < player2X) then
-				joypad.set({Right=true}, 2)
+			if (activePlayerX > dummyPlayerX) then
+				joypad.set({Left=true}, dummyPlayer)
+			elseif (activePlayerX < dummyPlayerX) then
+				joypad.set({Right=true}, dummyPlayer)
 			end
 		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Towards" then
-			if (player1X > player2X) then
+			if (activePlayerX > dummyPlayerX) then
 				dashRight()
-			elseif (player1X < player2X) then
+			elseif (activePlayerX < dummyPlayerX) then
 				dashLeft()
 			end
 		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Away" then
-			if (player1X > player2X) then
+			if (activePlayerX > dummyPlayerX) then
 				dashLeft()
-			elseif (player1X < player2X) then
+			elseif (activePlayerX < dummyPlayerX) then
 				dashRight()
 			end
 		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Crouch" then
-			joypad.set({Down=true}, 2)
+			joypad.set({Down=true}, dummyPlayer)
 		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Hop" then
 			jumpSet(5)
 		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Jump" then
@@ -716,9 +758,9 @@
 				movementTimer = 0
 			end
 			if actionStrings[optionIndexes[mainIndexes["Action"]]] == "Block" then
-				joypad.set({L1=true}, 2)
+				joypad.set({L1=true}, dummyPlayer)
 			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Crouch Block" then
-				joypad.set({L1=true, Down=true}, 2)
+				joypad.set({L1=true, Down=true}, dummyPlayer)
 			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special1" then
 				singleActionSet({Circle=true}, {Circle=false})
 			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special2" then
@@ -807,8 +849,10 @@
 				gameIsPaused = false
 			end
 			-- get input
-			inputTable=joypad.get(1)
-			handleTrainingGui(inputTable, buttonPressedAtLastFrame)
+			inputTableP1=joypad.get(1)
+			inputTableP2=joypad.get(2)
+			handleTrainingGui(inputTableP1, buttonPressedAtLastFrameP1)
+			handleTrainingGui(inputTableP2, buttonPressedAtLastFrameP2)
 			if not gameIsPaused then
 				updateScoreValues()
 				updateHPValues()
@@ -817,7 +861,8 @@
 					handleDummy()
 				end
 			end
-			buttonPressedAtLastFrame = inputTable;
+			buttonPressedAtLastFrameP1 = inputTableP1;
+			buttonPressedAtLastFrameP2 = inputTableP2;
 			handleGeneralGraphics()
 		end
 		emu.frameadvance()

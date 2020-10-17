@@ -14,11 +14,12 @@ A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena
 While you are using the GUI, the player 2 character will stand still. It is advised to enter the pause menu while using this GUI to avoid accidental presses (e.g. triggering an unwanted Digivolution when scrolling through the options via R1). I have chosen the shoulder buttons because they are the least disruptive, even when the game is running. Originally, the GUI was bound to Select, but this caused troubles while trying to select a character for a mirror match in the selection screen.
 
 # Features
+* Toggleable dummy (P1 or P2)
 * Toggleable infinite HP for both characters;
 * Toggleable infinite timer;
 * Dummy actions;
-* Dumm movement;
-* Set action to be performed after damage has been dealt;
+* Dummy movement;
+* Set action to be performed after damage has been dealt/on wake up;
 * Show HP/Digi in numeric form;
 * Show character state (attack, idle, block...) in text form.
 
@@ -30,7 +31,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;
 * When the game is set to full screen, the training options won't be scaled, causing visual artifacts;
 * After a Digievolution, the state variables used to show the current move don't work for the evolved Digimon;
-* If the scalable version is used, when the menu is shown, the game could stutter slightly, depending on your PC specs.
+* If the scalable version is used, when the menu is shown, the game could stutter slightly, depending on your PC specs (not yet selectable).
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
