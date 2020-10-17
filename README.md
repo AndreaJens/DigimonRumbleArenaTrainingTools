@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.3
+# Digimon Rumble Arena - Training Tools v1.3.1
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
@@ -29,7 +29,6 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too;
 * The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;
 * When the game is set to full screen, the training options won't be scaled, causing visual artifacts;
-* Actions after damage are still pretty buggy, as I cannot syncrhonize them with the end of the hitsun. So far, block and crouch block work flawlessly, but other actions may have consistent delay.
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
