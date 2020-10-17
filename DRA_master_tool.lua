@@ -680,7 +680,11 @@
 		if actOnlyAfterDamage then 
 			if (isPerformingAfterDamageAction) then
 				afterDamageActionTimer = afterDamageActionTimer + 1
-				if afterDamageActionTimer > 30 then
+				local limit = 30
+				if player2State == 12 or player2State == 21 then
+					limit = 100
+				end
+				if afterDamageActionTimer > limit then
 					afterDamageActionTimer = 0
 					isPerformingAfterDamageAction = false
 				end
