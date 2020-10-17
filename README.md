@@ -36,4 +36,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * This [handy website](http://bsfree.shadowflareindustries.com/index.php?s=1&d=8&g=8415&c=20939) where I could retrieve cheat codes for infinite health and frozen timer. Credits to the user StalkerX for posting the codes I used in that part of the script;
 * Yuri Bacon for pointing me in the right direction and supplying some of the material I used for this script;
 * Teseo22 for retrieving all defence values by sheer determination with a long, daunting sequence of experiments;
-* Connor (ncea) for reporting the issues with BizHawk 2.2 and general improvement suggestions
+* Connor (ncea) for reporting the issues with BizHawk 2.2 and general improvement suggestions.
+
+# Development journal
+* An explanation of why I did this and how I figured out most of the stuff in this script can be found in a short-ish Google Doc [here](https://docs.google.com/document/d/1liomAm0ulcBb3i3iuVjsLtElVEWNgxwlazKeHJq3kug/edit?usp=sharing)
