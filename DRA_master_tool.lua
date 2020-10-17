@@ -191,7 +191,7 @@
 		characterByteSizeForHealthBars[21]		= 540772	-- Stingmon
 		characterByteSizeForHealthBars[22]		= 540848	-- Imperialdramon
 		characterByteSizeForHealthBars[23]		= 540776	-- Magnadramon
-
+	
 	-- defence multiplier, as labbed by Teseo (Digimon Rumble Arena Discord)
 	-- indexes as above
 	local healthMultiplier = {}
@@ -223,12 +223,7 @@
 	-- Digivolution marker - used for applying the correct defence value multiplier if the character is in a Evo form
 	-- indexes as above
 	local evoFormIndex = {}
-		evoFormIndex[0]		=  0	-- Reapermon
-		evoFormIndex[1]		=  1	-- BlackWarGreymon
-		evoFormIndex[2]		=  2	-- Omnimon
 		evoFormIndex[3]		=  4	-- Impmon
-		evoFormIndex[4]		=  4	-- Beelzemon
-		evoFormIndex[5]		=  5	-- Imperialdramon Paladin Mode
 		evoFormIndex[6]		= 15	-- Gabumon
 		evoFormIndex[7]		= 16	-- Agumon
 		evoFormIndex[8]		= 17	-- Patamon
@@ -238,21 +233,12 @@
 		evoFormIndex[12]	= 21	-- Wormon
 		evoFormIndex[13]	= 22	-- Veemon
 		evoFormIndex[14]	= 23	-- Gatomon
-		evoFormIndex[15]	= 15	-- MetalGarurumon
-		evoFormIndex[16]	= 16	-- WarGreymon
-		evoFormIndex[17]	= 17	-- Seraphimon
-		evoFormIndex[18]	= 18	-- MegaGargomon
-		evoFormIndex[19]	= 19	-- Gallantmon
-		evoFormIndex[20]	= 20	-- Sakuyamon
-		evoFormIndex[21]	= 21	-- Stingmon
-		evoFormIndex[22]	= 22	-- Imperialdramon
-		evoFormIndex[23]	= 23	-- Magnadramon
 
 	-- status variables for player 1. To get the addresses for player 2, calculate the offset between  p2PositionMemoryValues[p1Index] - 0x107AC8 and
 	-- add it to the below value
-	local statusP1Address 		 	= 0x107994
-	local moveIdP1Address 		 	= 0x10785C
-	local moveFrameNumberP1Address	= 0x107860
+	local statusP1Address 		 		= 0x107994
+	local moveIdP1Address 		 		= 0x10785C
+	local moveFrameNumberP1Address		= 0x107860
 
 	-- states recogized so far
 	local characterStatus = {}
@@ -298,7 +284,7 @@
 	
 	-- check if character is in hitstun
 	function isHitstun(playerState)
-		return (playerState == 13 or playerState == 14)
+		return (playerState >= 13 and playerState <= 18)
 	end
 
 	-- draw GUI
@@ -315,6 +301,25 @@
 			end
 			gui.text(50, 40 + index * 30, labels[index], color1)
 			gui.text(300, 40 + index * 30, optionValueslists[index][optionIndexes[index]], color2)
+		end
+	end
+	
+	-- draw GUI scalable
+	function drawTrainingGuiScalable()
+		local fontSize = 18
+		local outlineColor = 0xffff333333
+		gui.drawBox(0, 0, 960, 480, null, 0xaaaaaaaa)
+		gui.drawText(400, 20, 'Digimon Rumble Arena - Training Helper', 0xffaaaa00, outlineColor, fontSize + 4, null, null, "center")
+		gui.drawText(400, 40, 'Scroll between options with L2/R2. Scroll between values with L1/R1.', 0xffaaaa00, outlineColor, fontSize - 2, null, null, "center")
+		for index=1,labelsSize,1 do
+			color1 = inactiveColorLabel
+			color2 = inactiveColorItem
+			if index == trainingOptionIndex then
+				color1 = activeColorLabel
+				color2 = activeColorItem
+			end
+			gui.drawText(50, 40 + index * 30, labels[index], color1, outlineColor, fontSize)
+			gui.drawText(300, 40 + index * 30, optionValueslists[index][optionIndexes[index]], color2, outlineColor, fontSize)
 		end
 	end
 
@@ -378,14 +383,21 @@
 			player1Digi = memory.read_u16_le(addressHPPlayer1 + 16)
 			player2Digi = memory.read_u16_le(addressHPPlayer2 + 16)
 			-- easiest marker to determine DigiEvolution: if Digi is going down, it's most likely an Evo (or the game got paused)
-			if player1DigiLastFrame > player1Digi then
-				player1DigiNoDecreaseFrameCounter = 0
-				player1IsEvo = true
+			if evoFormIndex[player1CharacterIndex] ~= nil then
+				if player1DigiLastFrame > player1Digi then
+					player1DigiNoDecreaseFrameCounter = 0
+					player1IsEvo = true
+				end
+			else
+				player1IsEvo = false
 			end
-			
-			if player2DigiLastFrame > player2Digi then
-				player2DigiNoDecreaseFrameCounter = 0
-				player2IsEvo = true
+			if evoFormIndex[player2CharacterIndex] ~= nil then
+				if player2DigiLastFrame > player2Digi then
+					player2DigiNoDecreaseFrameCounter = 0
+					player2IsEvo = true
+				end
+			else
+				player2IsEvo = false
 			end
 			-- restore Evo status when Digi reaches 0 - doesn't work when a new round starts
 			if player1Digi == 0 then
@@ -683,6 +695,10 @@
 				local limit = 30
 				if player2State == 12 or player2State == 21 then
 					limit = 100
+					-- keep block up until the move is being performed
+					if (player1Move > 1) then
+						limit = afterDamageActionTimer + 1
+					end
 				end
 				if afterDamageActionTimer > limit then
 					afterDamageActionTimer = 0

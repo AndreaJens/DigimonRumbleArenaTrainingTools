@@ -1,3 +1,7 @@
+v 1.3.2 (17.10.2020)
+*   the "after damage" action is also set to trigger during a wake-up
+*	created function for fullscreen scaling, but since it causes some stutter it's not enabled by default
+
 v 1.3.1 (17.10.2020)
 *   Set action/movement after hitstun to trigger at the first possible frame
 
