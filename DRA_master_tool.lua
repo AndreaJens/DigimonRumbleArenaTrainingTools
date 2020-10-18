@@ -10,11 +10,12 @@
 		mainIndexes["Dummy"] 		= 1
 		mainIndexes["Action"] 		= 2
 		mainIndexes["Movement"] 	= 3
-		mainIndexes["HP"] 			= 5
-		mainIndexes["Timer"] 		= 6
-		mainIndexes["HUD"] 			= 7
+		mainIndexes["HP"] 			= 6
+		mainIndexes["Timer"] 		= 7
+		mainIndexes["HUD"] 			= 8
 		mainIndexes["AftDmg"]		= 4
-		mainIndexes["StateAtk"]		= 8
+		mainIndexes["AftKnd"]		= 5
+		mainIndexes["StateAtk"]		= 9
 
 	local trainingOverlayVisible = false
 	local inputTableP1={}
@@ -32,6 +33,7 @@
 		optionIndexes[mainIndexes["Timer"]] 		= 1
 		optionIndexes[mainIndexes["HUD"]] 			= 1
 		optionIndexes[mainIndexes["AftDmg"]] 		= 2
+		optionIndexes[mainIndexes["AftKnd"]] 		= 2
 		optionIndexes[mainIndexes["StateAtk"]] 		= 2
 
 	local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
@@ -50,7 +52,8 @@
 		labels[mainIndexes["HP"]] 			= "Health Bars"
 		labels[mainIndexes["Timer"]] 		= "Timer"
 		labels[mainIndexes["HUD"]] 			= "Show HP/Digi"
-		labels[mainIndexes["AftDmg"]] 		= "Act only after Damage"
+		labels[mainIndexes["AftDmg"]] 		= "Act after Damage"
+		labels[mainIndexes["AftKnd"]] 		= "Act after Knockdown"
 		labels[mainIndexes["StateAtk"]] 	= "Show State/Action"
 
 	-- menu values
@@ -62,6 +65,7 @@
 		optionValueslists[mainIndexes["Timer"]] 		= timerStrings
 		optionValueslists[mainIndexes["HUD"]] 			= hpDigiValues
 		optionValueslists[mainIndexes["AftDmg"]] 		= yesnoString
+		optionValueslists[mainIndexes["AftKnd"]] 		= yesnoString
 		optionValueslists[mainIndexes["StateAtk"]] 		= yesnoString
 
 	-- menu sizes
@@ -73,6 +77,7 @@
 		optionSizes[mainIndexes["Timer"]] 		= table.getn(timerStrings)
 		optionSizes[mainIndexes["HUD"]] 		= table.getn(hpDigiValues)
 		optionSizes[mainIndexes["AftDmg"]] 		= table.getn(yesnoString)
+		optionSizes[mainIndexes["AftKnd"]] 		= table.getn(yesnoString)
 		optionSizes[mainIndexes["StateAtk"]] 	= table.getn(yesnoString)
 
 	local labelsSize = table.getn(labels)
@@ -108,6 +113,7 @@
 	local player2ScoreLastFrame = 0
 
 	local actOnlyAfterDamage = false
+	local actOnlyAfterKnockdown = false
 	local isPerformingAfterDamageAction = false
 	local prepareAfterDamageActionCheck = false
 	local afterDamageActionTimer = 0
@@ -295,7 +301,17 @@
 	
 	-- check if character is in hitstun
 	function isHitstun(playerState)
-		return (playerState >= 13 and playerState <= 18)
+		return (playerState == 13 or playerState == 14)
+	end
+	
+	-- check if character is knocked down
+	function isKnockedDown(playerState)
+		return (playerState >= 16 and playerState <= 18)
+	end
+	
+	-- check if the dummy has to perform a triggered action
+	function hasStateTriggeredAction()
+		return (actOnlyAfterKnockdown or actOnlyAfterDamage)
 	end
 
 	-- draw GUI
@@ -454,10 +470,33 @@
 			dummyState = player1State
 			dummyStateLastFrame = player1StateLastFrame
 		end
+		
+		-- after hit-stun reaction
 		if (not isHitstun(dummyStateLastFrame) and isHitstun(dummyState)) then
-			prepareAfterDamageActionCheck = true
-			afterDamageActionTimer = 0
+			if (actOnlyAfterDamage) then
+				prepareAfterDamageActionCheck = true
+				afterDamageActionTimer = 0
+			end
 		elseif (isHitstun(dummyStateLastFrame) and not isHitstun(dummyState)) then
+			actionTimer = 0
+			afterDamageActionTimer = 0
+			movementTimer = 0
+			delayMovementTimer = 0
+			delayTimer = 0
+			if prepareAfterDamageActionCheck then
+				prepareAfterDamageActionCheck = false
+				isPerformingAfterDamageAction = true
+			end
+			--console.log(tostring(emu.framecount()) .. " - Exit hitstun")
+		end
+		
+		-- knock down wake up reaction
+		if (not isKnockedDown(dummyStateLastFrame) and isKnockedDown(dummyState)) then
+			if (actOnlyAfterKnockdown) then
+				prepareAfterDamageActionCheck = true
+				afterDamageActionTimer = 0
+			end
+		elseif (isKnockedDown(dummyStateLastFrame) and not isKnockedDown(dummyState)) then
 			actionTimer = 0
 			afterDamageActionTimer = 0
 			movementTimer = 0
@@ -499,6 +538,11 @@
 			actOnlyAfterDamage = true
 		else
 			actOnlyAfterDamage = false
+		end
+		if optionIndexes[mainIndexes["AftKnd"]] == 1 then
+			actOnlyAfterKnockdown = true
+		else
+			actOnlyAfterKnockdown = false
 		end
 		isPerformingAfterDamageAction = false
 		afterDamageActionTimer = 0
@@ -731,7 +775,7 @@
 
 	-- handle dummy actions
 	function handleDummy()
-		if actOnlyAfterDamage then 
+		if hasStateTriggeredAction() then 
 			if (isPerformingAfterDamageAction) then
 				afterDamageActionTimer = afterDamageActionTimer + 1
 				local limit = 30
@@ -750,7 +794,7 @@
 				--handleDummyMovement()
 			end
 		end
-		if ((not actOnlyAfterDamage) or (actOnlyAfterDamage and isPerformingAfterDamageAction)) then
+		if ((not hasStateTriggeredAction()) or (hasStateTriggeredAction() and isPerformingAfterDamageAction)) then
 			actionTimer = actionTimer + 1
 			if (delayTimer > 0 or actionStrings[optionIndexes[mainIndexes["Action"]]] == "None") then
 				handleDummyMovement()

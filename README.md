@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.3.3
+# Digimon Rumble Arena - Training Tools v1.3.4
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
