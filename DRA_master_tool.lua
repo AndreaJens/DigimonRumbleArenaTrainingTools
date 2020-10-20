@@ -13,6 +13,7 @@
 		mainIndexes["HP"] 			= 6
 		mainIndexes["Timer"] 		= 7
 		mainIndexes["HUD"] 			= 8
+		mainIndexes["DmgHUD"] 		= 10
 		mainIndexes["AftDmg"]		= 4
 		mainIndexes["AftKnd"]		= 5
 		mainIndexes["StateAtk"]		= 9
@@ -31,10 +32,11 @@
 		optionIndexes[mainIndexes["Movement"]] 		= 1
 		optionIndexes[mainIndexes["HP"]] 			= 1
 		optionIndexes[mainIndexes["Timer"]] 		= 1
-		optionIndexes[mainIndexes["HUD"]] 			= 1
+		optionIndexes[mainIndexes["HUD"]] 			= 2
 		optionIndexes[mainIndexes["AftDmg"]] 		= 2
 		optionIndexes[mainIndexes["AftKnd"]] 		= 2
-		optionIndexes[mainIndexes["StateAtk"]] 		= 2
+		optionIndexes[mainIndexes["StateAtk"]] 		= 1
+		optionIndexes[mainIndexes["DmgHUD"]] 		= 1
 
 	local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
 	local movementStrings = {"None", "Crouch", "Walk Towards", "Walk Away", "Dash Towards", "Dash Away", "Hop", "Jump", "High Jump"}
@@ -42,7 +44,7 @@
 	local timerStrings = {"Normal", "Infinite"}
 	local yesnoString = {"Yes", "No"}
 	local dummyStrings = {"Player 1", "Player 2"}
-	local hpDigiValues = {"No", "Percentage", "Absolute Pixel Bar Size", "Scaled using Defence Value"}
+	local hpDigiValues = {"No", "Percentage", "Simple Percentage", "Absolute", "Absolute w/ Defence Value"}
 
 	-- menu labels
 	local labels = {}
@@ -55,6 +57,7 @@
 		labels[mainIndexes["AftDmg"]] 		= "Act after Damage"
 		labels[mainIndexes["AftKnd"]] 		= "Act after Knockdown"
 		labels[mainIndexes["StateAtk"]] 	= "Show State/Action"
+		labels[mainIndexes["DmgHUD"]] 		= "Show Damage Info"
 
 	-- menu values
 	local optionValueslists = {}
@@ -67,6 +70,7 @@
 		optionValueslists[mainIndexes["AftDmg"]] 		= yesnoString
 		optionValueslists[mainIndexes["AftKnd"]] 		= yesnoString
 		optionValueslists[mainIndexes["StateAtk"]] 		= yesnoString
+		optionValueslists[mainIndexes["DmgHUD"]] 		= yesnoString
 
 	-- menu sizes
 	local optionSizes = {}
@@ -79,6 +83,7 @@
 		optionSizes[mainIndexes["AftDmg"]] 		= table.getn(yesnoString)
 		optionSizes[mainIndexes["AftKnd"]] 		= table.getn(yesnoString)
 		optionSizes[mainIndexes["StateAtk"]] 	= table.getn(yesnoString)
+		optionSizes[mainIndexes["DmgHUD"]] 		= table.getn(yesnoString)
 
 	local labelsSize = table.getn(labels)
 	local actionTimer = 0
@@ -98,12 +103,12 @@
 	local player1HPLastFrame = 0
 	local player2HP = 0
 	local player2HPLastFrame = 0
-	local defaultHPValue = 120
+	local defaultHPValue = 65536.0
 	local player1Digi = 0
 	local player1DigiLastFrame = 0
 	local player2Digi = 0
 	local player2DigiLastFrame = 0
-	local defaultDigiValue = 70
+	local defaultDigiValue = 65536.0
 
 	local scorePlayer1Address = 0x05FBEC
 	local scorePlayer2Address = 0x05FC04
@@ -136,6 +141,12 @@
 	
 	local dummyPlayer = 2
 	local activePlayer = 1
+	
+	local comboCounters 		= {0, 0}
+	local lastHitDamage 		= {0, 0}
+	local comboDamage		 	= {0, 0}
+	local comboTimer			= {0, 0}
+	local comboDisplayDuration	= 120
 
 	-- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
 	local pauseMemoryAddress = 0x05F880
@@ -304,6 +315,16 @@
 		return (playerState == 13 or playerState == 14)
 	end
 	
+	-- check if character is blocking
+	function isBlocking(playerState)
+		return playerState == 12 or playerState == 21
+	end
+	
+	-- check if character is active (out of combo)
+	function isOutOfCombo(playerState)
+		return (playerState <= 4 or isBlocking(playerState) or playerState == 18)
+	end
+	
 	-- check if character is knocked down
 	function isKnockedDown(playerState)
 		return (playerState >= 16 and playerState <= 18)
@@ -312,6 +333,55 @@
 	-- check if the dummy has to perform a triggered action
 	function hasStateTriggeredAction()
 		return (actOnlyAfterKnockdown or actOnlyAfterDamage)
+	end
+	
+	-- reset combo variables for one player
+	function resetComboVariables(index)
+		comboCounters[index] = 0
+		comboDamage[index] = 0
+		comboTimer[index] = 0
+	end
+	
+	-- update combo counters
+	function updateComboDisplay()
+		if isOutOfCombo(player2State) then
+			comboTimer[1] = comboTimer[1] + 1
+			if comboTimer[1] > comboDisplayDuration then
+				resetComboVariables(1)
+			end
+		end
+		-- player 2
+		if isOutOfCombo(player1State) then
+			comboTimer[2] = comboTimer[2] + 1
+			if comboTimer[2] > comboDisplayDuration then
+				resetComboVariables(2)
+			end
+		end
+		-- player 1
+		if player2HPLastFrame > player2HP then
+			local tempDamage = player2HPLastFrame - player2HP
+			if (comboTimer[1] > 0) then
+				comboCounters[1] 	= 0
+				comboDamage[1] 		= 0
+			end
+			comboCounters[1] 	= comboCounters[1] + 1
+			comboDamage[1] 		= comboDamage[1] + tempDamage
+			comboTimer[1]		= 0
+			lastHitDamage[1] 	= tempDamage
+		end
+		-- player 2
+		if player1HPLastFrame > player1HP then
+			local tempDamage = player1HPLastFrame - player1HP
+			if (comboTimer[2] > 0) then
+				comboCounters[2] 	= 0
+				comboDamage[2] 		= 0
+			end
+			comboCounters[2] 	= comboCounters[2] + 1
+			comboDamage[2] 		= comboDamage[2] + tempDamage
+			comboTimer[2]		= 0
+			lastHitDamage[2] 	= tempDamage
+		end
+		
 	end
 
 	-- draw GUI
@@ -353,16 +423,21 @@
 	-- draw HP values
 	function drawHPValues()
 		if optionIndexes[mainIndexes["HUD"]] == 2 then
-			gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
-			gui.drawText(356, 430, tostring(math.floor(player1HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
-			gui.drawText(454, 430, tostring(math.floor(player2HP * 100 / defaultHPValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
-			gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(596, 409, string.format("%.1f", player2Digi * 100 / defaultDigiValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(356, 430, string.format("%.2f", player1HP * 100 / defaultHPValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 430, string.format("%.2f", player2HP * 100 / defaultHPValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(210, 409, string.format("%.1f", player1Digi * 100 / defaultDigiValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "left")
 		elseif optionIndexes[mainIndexes["HUD"]] == 3 then
+			gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue)) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(356, 430, tostring(math.floor(player1HP * 100 / defaultHPValue)) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 430, tostring(math.floor(player2HP * 100 / defaultHPValue)) .. "%", 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue)) .. "%", 0xffffffff, 0xff000000, 16, null, null, "left") 
+		elseif optionIndexes[mainIndexes["HUD"]] == 4 then
 			gui.drawText(356, 430, tostring(player1HP), 0xffffffff, 0xff000000, 16, null, null, "right")
 			gui.drawText(454, 430, tostring(player2HP), 0xffffffff, 0xff000000, 16, null, null, "left")
 			gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
 			gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
-		elseif optionIndexes[mainIndexes["HUD"]] == 4 then
+		elseif optionIndexes[mainIndexes["HUD"]] == 5 then
 			healthMultiplierPlayer1 = healthMultiplier[player1CharacterIndex]
 			healthMultiplierPlayer2 = healthMultiplier[player2CharacterIndex]
 			if player1IsEvo then
@@ -371,11 +446,23 @@
 			if player2IsEvo then
 				healthMultiplierPlayer2 = healthMultiplier[evoFormIndex[player2CharacterIndex]]
 			end
-			gui.drawText(356, 430, tostring(math.floor(healthMultiplierPlayer1 * player1HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "right")
-			gui.drawText(454, 430, tostring(math.floor(healthMultiplierPlayer2 * player2HP * 100 / defaultHPValue)), 0xffffffff, 0xff000000, 16, null, null, "left")
-			gui.drawText(210, 409, tostring(math.floor(player1Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "left")
-			gui.drawText(596, 409, tostring(math.floor(player2Digi * 100 / defaultDigiValue) .. "%"), 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(356, 430, tostring(math.floor(healthMultiplierPlayer1 * player1HP)), 0xffffffff, 0xff000000, 16, null, null, "right")
+			gui.drawText(454, 430, tostring(math.floor(healthMultiplierPlayer2 * player2HP)), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(210, 409, tostring(player1Digi), 0xffffffff, 0xff000000, 16, null, null, "left")
+			gui.drawText(596, 409, tostring(player2Digi), 0xffffffff, 0xff000000, 16, null, null, "right")
 		end
+	end
+	
+	-- draw combo damage
+	function drawComboCounters()
+		-- player 2
+		gui.drawText(110, 10, tostring(comboCounters[1]) .. " hits", 0xffffffff, 0xff000000, 22, null, null, "left")
+		gui.drawText(110, 32, "combo damage: " .. tostring(comboDamage[1]), 0xffffffff, 0xff000000, 16, null, null, "left")
+		gui.drawText(110, 48, "last hit dmg: " .. tostring(lastHitDamage[1]), 0xffffffff, 0xff000000, 16, null, null, "left")
+		-- player 2
+		gui.drawText(690, 10, tostring(comboCounters[2]) .. " hits", 0xffffffff, 0xff000000, 22, null, null, "right")
+		gui.drawText(690, 32, "combo damage: " .. tostring(comboDamage[2]), 0xffffffff, 0xff000000, 16, null, null, "right")
+		gui.drawText(690, 48, "last hit dmg: " .. tostring(lastHitDamage[2]), 0xffffffff, 0xff000000, 16, null, null, "right")
 	end
 
 	-- draw character action & frame
@@ -400,15 +487,16 @@
 	function updateHPValues()
 		if (characterByteSizeForHealthBars[player1CharacterIndex] ~= nil and characterByteSizeForHealthBars[player2CharacterIndex] ~= nil) then
 			local addressHPPlayer1 = characterByteSizeForHealthBars[player1CharacterIndex] + characterByteSizeForHealthBars[player2CharacterIndex]
+			addressHPPlayer1 = addressHPPlayer1 - 4 -- found experimentally
 			local addressHPPlayer2 = addressHPPlayer1 + 132
 			player1HPLastFrame = player1HP
 			player2HPLastFrame = player2HP
 			player1DigiLastFrame = player1Digi
 			player2DigiLastFrame = player2Digi
-			player1HP = memory.read_u16_le(addressHPPlayer1)
-			player2HP = memory.read_u16_le(addressHPPlayer2)
-			player1Digi = memory.read_u16_le(addressHPPlayer1 + 16)
-			player2Digi = memory.read_u16_le(addressHPPlayer2 + 16)
+			player1HP = memory.read_u32_le(addressHPPlayer1)
+			player2HP = memory.read_u32_le(addressHPPlayer2)
+			player1Digi = memory.read_u32_le(addressHPPlayer1 + 16)
+			player2Digi = memory.read_u32_le(addressHPPlayer2 + 16)
 			-- easiest marker to determine DigiEvolution: if Digi is going down, it's most likely an Evo (or the game got paused)
 			if evoFormIndex[player1CharacterIndex] ~= nil then
 				if player1DigiLastFrame > player1Digi then
@@ -867,6 +955,9 @@
 				drawStateAndFrame()
 			end
 		end
+		if (optionIndexes[mainIndexes["DmgHUD"]] ~= 2) then
+			drawComboCounters()
+		end
 		if trainingOverlayVisible then
 			drawTrainingGui()
 		end
@@ -901,6 +992,7 @@
 				updateScoreValues()
 				updateHPValues()
 				updateStateAndAction()
+				updateComboDisplay()
 				if not trainingOverlayVisible then
 					handleDummy()
 				end
