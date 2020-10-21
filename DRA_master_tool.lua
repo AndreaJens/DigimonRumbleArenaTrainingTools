@@ -1,4 +1,4 @@
-	--[[Digimon Rumble Arena Training Mode Script v1.4.1
+	--[[Digimon Rumble Arena Training Mode Script v1.4.2
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
@@ -227,8 +227,8 @@
 	-- defence multiplier, as labbed by Teseo (Digimon Rumble Arena Discord)
 	-- indexes as above
 	local healthMultiplier = {}
-		healthMultiplier[18]		= 1.17	-- MegaGargomon
-		healthMultiplier[15]		= 1.11	-- MetalGarurumon
+		healthMultiplier[18]		= 1.21	-- MegaGargomon
+		healthMultiplier[15]		= 1.17	-- MetalGarurumon
 		healthMultiplier[0]			= 1.11	-- Reapermon
 		healthMultiplier[16]		= 1.11	-- WarGreymon
 		healthMultiplier[17]		= 1.11	-- Seraphimon
