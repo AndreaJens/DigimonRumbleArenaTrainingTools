@@ -1,32 +1,32 @@
-# Digimon Rumble Arena - Training Tools v1.4
+# Digimon Rumble Arena - Training Tools v1.4.1
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
 * Load Digimon Rumble Arena via the [Bizhawk emulator](http://tasvideos.org/BizHawk.html). Open the Lua console and load the script **DRA_master_tool.lua** that is found in this repository;
 * Select "2 Player mode" and start a match;
-* Once in game, you can push the button assigned to L3 on your joypad to call the GUI. 
+* Once in game, you can just pause the game to show the GUI. 
 
 # Controls
-* Toggle the GUI on/off by pressing L3;
+* Toggle the GUI on/off by pausing/unpausing the game;
 * Scroll through options via L2/R2;
 * Change values with L1/R1.
 
-While you are using the GUI, the player 2 character will stand still. It is advised to enter the pause menu while using this GUI to avoid accidental presses (e.g. triggering an unwanted Digivolution when scrolling through the options via R1). I have chosen the shoulder buttons because they are the least disruptive, even when the game is running. Originally, the GUI was bound to Select, but this caused troubles while trying to select a character for a mirror match in the selection screen.
+While you are using the GUI, the player 2 character will stand still. It is advised to enter the pause menu while using this GUI to avoid accidental presses (e.g. triggering an unwanted Digivolution when scrolling through the options via R1). I have chosen the shoulder buttons because they are the least disruptive, even when the game is running.
 
 # Features
 * Toggleable dummy (P1 or P2)
 * Toggleable infinite HP for both characters;
-* Toggleable infinite timer;
+* Toggleable infinite or cyclic timer;
 * Dummy actions;
 * Dummy movement;
 * Damage display and true combo counter (the in-game one is kind of bugged)
 * Set action to be performed after damage has been dealt/on wake up;
 * Show HP/Digi in numeric form;
+* Show timer value in frames;
 * Show character state (attack, idle, block...) in text form.
 
 # Known issues
 * Calling the GUI during a loading screen can cause the game to freeze;
-* I couldn't manage to make 2-Jabs and 3-Jabs combos work properly;
 * This script works only if the controls for the Player 2 character are kept to default, in-game;
 * I haven't tested this script with either the JP or the PAL version of the game, thus I cannot guarantee for it to work with those too;
 * The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;

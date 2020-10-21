@@ -1,4 +1,4 @@
-	--[[Digimon Rumble Arena Training Mode Script v1.4
+	--[[Digimon Rumble Arena Training Mode Script v1.4.1
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
@@ -41,7 +41,7 @@
 	local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
 	local movementStrings = {"None", "Crouch", "Walk Towards", "Walk Away", "Dash Towards", "Dash Away", "Hop", "Jump", "High Jump"}
 	local healthStrings = {"Normal", "Infinite P2", "Infinite P1", "Infinite P1/P2"}
-	local timerStrings = {"Normal", "Infinite"}
+	local timerStrings = {"Normal", "Infinite", "Cyclic"}
 	local yesnoString = {"Yes", "No"}
 	local dummyStrings = {"Player 1", "Player 2"}
 	local hpDigiValues = {"No", "Percentage", "Simple Percentage", "Absolute", "Absolute w/ Defence Value"}
@@ -95,6 +95,8 @@
 	local activeColorItem = 0xffffffff
 	local inactiveColorLabel = 0xff444400
 	local inactiveColorItem  = 0xff444444
+	local inputDelayCycles = 0
+	
 	local player1CharacterIndex = 0
 	local player2CharacterIndex = 0
 	local stageIndex = 0
@@ -139,6 +141,8 @@
 	local player1MoveFrames = 0
 	local player2MoveFrames = 0
 	
+	local currentTimer = 0
+	
 	local dummyPlayer = 2
 	local activePlayer = 1
 	
@@ -147,7 +151,7 @@
 	local comboDamage		 	= {0, 0}
 	local comboTimer			= {0, 0}
 	local comboDisplayDuration	= 120
-
+	
 	-- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
 	local pauseMemoryAddress = 0x05F880
 
@@ -223,30 +227,30 @@
 	-- defence multiplier, as labbed by Teseo (Digimon Rumble Arena Discord)
 	-- indexes as above
 	local healthMultiplier = {}
-		healthMultiplier[18]		= 1.58	-- MegaGargomon
-		healthMultiplier[15]		= 1.53	-- MetalGarurumon
-		healthMultiplier[0]			= 1.44	-- Reapermon
-		healthMultiplier[16]		= 1.44	-- WarGreymon
-		healthMultiplier[17]		= 1.44	-- Seraphimon
-		healthMultiplier[19]		= 1.44	-- Gallantmon
-		healthMultiplier[2]			= 1.42	-- Omnimon
-		healthMultiplier[20]		= 1.36	-- Sakuyamon
-		healthMultiplier[22]		= 1.36	-- Imperialdramon
-		healthMultiplier[23]		= 1.36	-- Magnadramon
-		healthMultiplier[4]			= 1.36	-- Beelzemon
-		healthMultiplier[5]			= 1.33	-- Imperialdramon Paladin Mode
-		healthMultiplier[6]			= 1.33	-- Gabumon
-		healthMultiplier[1]			= 1.31	-- BlackWarGreymon
-		healthMultiplier[21]		= 1.31	-- Stingmon
-		healthMultiplier[7]			= 1.31	-- Agumon
-		healthMultiplier[10]		= 1.31	-- Guilmon
-		healthMultiplier[14]		= 1.31	-- Gatomon
-		healthMultiplier[9]			= 1.19	-- Terriermon
-		healthMultiplier[13]		= 1.19	-- Veemon
-		healthMultiplier[3]			= 1.14	-- Impmon
-		healthMultiplier[8]			= 1.08	-- Patamon
-		healthMultiplier[11]		= 1.05	-- Renamon
-		healthMultiplier[12]		= 1.00	-- Wormon
+		healthMultiplier[18]		= 1.17	-- MegaGargomon
+		healthMultiplier[15]		= 1.11	-- MetalGarurumon
+		healthMultiplier[0]			= 1.11	-- Reapermon
+		healthMultiplier[16]		= 1.11	-- WarGreymon
+		healthMultiplier[17]		= 1.11	-- Seraphimon
+		healthMultiplier[19]		= 1.11	-- Gallantmon
+		healthMultiplier[2]			= 1.09	-- Omnimon
+		healthMultiplier[20]		= 1.04	-- Sakuyamon
+		healthMultiplier[22]		= 1.04	-- Imperialdramon
+		healthMultiplier[23]		= 1.04	-- Magnadramon
+		healthMultiplier[4]			= 1.04	-- Beelzemon
+		healthMultiplier[5]			= 1.02	-- Imperialdramon Paladin Mode
+		healthMultiplier[6]			= 1.02	-- Gabumon
+		healthMultiplier[1]			= 1.00	-- BlackWarGreymon
+		healthMultiplier[21]		= 1.00	-- Stingmon
+		healthMultiplier[7]			= 1.00	-- Agumon
+		healthMultiplier[10]		= 1.00	-- Guilmon
+		healthMultiplier[14]		= 1.00	-- Gatomon
+		healthMultiplier[9]			= 0.91	-- Terriermon
+		healthMultiplier[13]		= 0.91	-- Veemon
+		healthMultiplier[3]			= 0.87	-- Impmon
+		healthMultiplier[8]			= 0.83	-- Patamon
+		healthMultiplier[11]		= 0.81	-- Renamon
+		healthMultiplier[12]		= 0.77	-- Wormon
 
 	-- Digivolution marker - used for applying the correct defence value multiplier if the character is in a Evo form
 	-- indexes as above
@@ -344,18 +348,27 @@
 	
 	-- update combo counters
 	function updateComboDisplay()
-		if isOutOfCombo(player2State) then
+		-- player 1
+		if player1Move ~= 24 and isOutOfCombo(player2State) then
 			comboTimer[1] = comboTimer[1] + 1
 			if comboTimer[1] > comboDisplayDuration then
 				resetComboVariables(1)
 			end
 		end
+		-- dizzy condition
+		if player2State == 15 then 
+			comboTimer[1] = 0
+		end
 		-- player 2
-		if isOutOfCombo(player1State) then
+		if player2Move ~= 24 and isOutOfCombo(player1State) then
 			comboTimer[2] = comboTimer[2] + 1
 			if comboTimer[2] > comboDisplayDuration then
 				resetComboVariables(2)
 			end
+		end
+		-- dizzy condition
+		if player1State == 15 then 
+			comboTimer[2] = 0
 		end
 		-- player 1
 		if player2HPLastFrame > player2HP then
@@ -381,7 +394,10 @@
 			comboTimer[2]		= 0
 			lastHitDamage[2] 	= tempDamage
 		end
-		
+		-- reset values in case memory address are changed after rematch
+		if player1State == 30 or player2State == 30 then
+			lastHitDamage = {0, 0}
+		end
 	end
 
 	-- draw GUI
@@ -422,6 +438,9 @@
 
 	-- draw HP values
 	function drawHPValues()
+		-- timer
+		gui.drawText(400, 390, tostring(currentTimer), 0xffffffff, 0xff000000, 16, null, null, "center")
+		-- hp and digi bars
 		if optionIndexes[mainIndexes["HUD"]] == 2 then
 			gui.drawText(596, 409, string.format("%.1f", player2Digi * 100 / defaultDigiValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
 			gui.drawText(356, 430, string.format("%.2f", player1HP * 100 / defaultHPValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
@@ -661,18 +680,19 @@
 		handleActAfterDamage()
 		handleNewAction()
 		handleHealthBars()
-		handleTimer()
+		--handleTimer()
 		handleDummyPlayer()
 	end
 
 	-- update GUI and selection from Menu
 	function handleTrainingGui(newInputTable, lastFrameInputTable)
+		--[[
 		if ((not newInputTable.L3) and (lastFrameInputTable.L3)) then
 			trainingOverlayVisible = not trainingOverlayVisible
 			if (not trainingOverlayVisible) then
 				handleSelection()
 			end
-		end
+		end]]
 
 		if trainingOverlayVisible then
 			if ((not newInputTable.R2) and (lastFrameInputTable.R2)) then
@@ -935,11 +955,23 @@
 	end
 
 	-- handle timer
+	-- DEPRECATED
 	function handleTimer()
 		if timerStrings[optionIndexes[mainIndexes["Timer"]]] ==  "Infinite" then
 			memory.write_u16_le(0x717BA, 0x2400)
 		else
 			memory.write_u16_le(0x717BA, 0xAE22)
+		end	
+	end
+	
+	-- handle timer
+	function updateTimer()
+		currentTimer = memory.read_u16_le(0x1E7c68)
+		if optionIndexes[mainIndexes["Timer"]] ==  2 then
+			memory.write_u16_le(0x1E7c68, 3000)
+			currentTimer = 3000
+		elseif optionIndexes[mainIndexes["Timer"]] ==  3 and currentTimer == 1 then
+			memory.write_u16_le(0x1E7c68, 3001)
 		end	
 	end
 
@@ -956,7 +988,9 @@
 			end
 		end
 		if (optionIndexes[mainIndexes["DmgHUD"]] ~= 2) then
-			drawComboCounters()
+			if player1HP > 0 and player2HP > 0 then
+				drawComboCounters()
+			end
 		end
 		if trainingOverlayVisible then
 			drawTrainingGui()
@@ -978,17 +1012,34 @@
 		if isInBattleScreen then
 			-- check if the game is paused
 			local pauseMenuCanary = memory.read_u32_le(pauseMemoryAddress)
+			local gameWasPaused = gameIsPaused
 			if pauseMenuCanary == 1 then
 				gameIsPaused = true
 			else
 				gameIsPaused = false
 			end
+			-- show menu synced with pause menu
+			if (gameIsPaused and not gameWasPaused) then
+				inputDelayCycles = 0
+				trainingOverlayVisible = true
+			elseif (not gameIsPaused and gameWasPaused) then
+				trainingOverlayVisible = false
+				handleSelection()
+			end
 			-- get input
 			inputTableP1=joypad.get(1)
 			inputTableP2=joypad.get(2)
-			handleTrainingGui(inputTableP1, buttonPressedAtLastFrameP1)
-			handleTrainingGui(inputTableP2, buttonPressedAtLastFrameP2)
+			-- update the GUI only if the game is paused
+			if gameIsPaused then
+				if inputDelayCycles < 10 then
+					inputDelayCycles = inputDelayCycles + 1
+				else
+					handleTrainingGui(inputTableP1, buttonPressedAtLastFrameP1)
+					handleTrainingGui(inputTableP2, buttonPressedAtLastFrameP2)
+				end
+			end
 			if not gameIsPaused then
+				updateTimer()
 				updateScoreValues()
 				updateHPValues()
 				updateStateAndAction()
@@ -997,8 +1048,10 @@
 					handleDummy()
 				end
 			end
+			-- save last frame input
 			buttonPressedAtLastFrameP1 = inputTableP1;
 			buttonPressedAtLastFrameP2 = inputTableP2;
+			-- handle graphics
 			handleGeneralGraphics()
 		end
 		emu.frameadvance()

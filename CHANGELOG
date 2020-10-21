@@ -1,3 +1,11 @@
+v 1.4.1 (21.10.2020)
+*	Added new timer option "Cyclic"
+*	Fixed scaled health values
+*	Menu bound to Start/Pause (not L3 anymore)
+*	Fixed bug that prevent stun combos from being registered as true combos
+*	Fixed bug that allowed the dummy to shift the cursor while blocking
+*	Added timer display with HP HUD
+
 v 1.4 (20.10.2020)
 *	Added damage display and combo counter
 *	Added support for raw percentage and normal percentage in life bar
