@@ -1,4 +1,4 @@
-	--[[Digimon Rumble Arena Training Mode Script v1.4.2
+	--[[Digimon Rumble Arena Training Mode Script v1.4.3
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
@@ -153,7 +153,8 @@
 	local comboDisplayDuration	= 120
 	
 	-- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
-	local pauseMemoryAddress = 0x05F880
+	local pauseMemoryAddress1 = 0x05F880 -- 0 or 1
+	local pauseMemoryAddress2 = 0x0622EC -- == 2 if the game is properly paused
 
 	-- I don't have ANY idea of what this memory address controls, only that it is always 0 in chara select screen and always 1 in battleScreenCanary
 	-- probably an asset loading flag, as it is set only once during the loading screen and never touched again
@@ -274,6 +275,7 @@
 
 	-- states recogized so far
 	local characterStatus = {}
+		characterStatus[-1] = "loading"
 		characterStatus[0]  = "idle"
 		characterStatus[1]  = "walking"
 		characterStatus[2]  = "dash"
@@ -289,6 +291,7 @@
 		characterStatus[19] = "crouching"
 		characterStatus[21] = "crouch block"
 		characterStatus[28] = "victory"
+		characterStatus[29] = "draw/loss"
 		characterStatus[30] = "intro"
 
 	-- moves recogized so far
@@ -565,8 +568,8 @@
 	function updateStateAndAction()
 		player1StateLastFrame = player1State
 		player2StateLastFrame = player2State
-		player1State = memory.read_u32_le(statusP1Address)
-		player2State = memory.read_u32_le(calculatePlayer2OffsetAddress(statusP1Address, player1CharacterIndex))
+		player1State = memory.read_s32_le(statusP1Address)
+		player2State = memory.read_s32_le(calculatePlayer2OffsetAddress(statusP1Address, player1CharacterIndex))
 		player1Move = memory.read_u32_le(moveIdP1Address)
 		player2Move = memory.read_u32_le(calculatePlayer2OffsetAddress(moveIdP1Address, player1CharacterIndex))
 		player1MoveFrames = memory.read_u32_le(moveFrameNumberP1Address)
@@ -624,19 +627,6 @@
 		player2ScoreLastFrame = player2Score
 		player1Score = memory.read_u32_le(scorePlayer1Address)
 		player2Score = memory.read_u32_le(scorePlayer2Address)
-		--[[
-		-- with the hitstun indication, probably we can get rid of the score now
-		-- player 1 score increase = player 2 was hit
-		if (actOnlyAfterDamage and player1Score > player1ScoreLastFrame) then
-			prepareAfterDamageActionCheck = true
-			--isPerformingAfterDamageAction = true
-			afterDamageActionTimer = 0
-		end
-		if (player1Score >= 999999) then
-			memory.write_u32_le(scorePlayer1Address, 0)
-			memory.write_u32_le(scorePlayer2Address, 0)
-		end 
-		]]--
 	end
 
 	-- handle "act after damage"
@@ -680,20 +670,11 @@
 		handleActAfterDamage()
 		handleNewAction()
 		handleHealthBars()
-		--handleTimer()
 		handleDummyPlayer()
 	end
 
 	-- update GUI and selection from Menu
 	function handleTrainingGui(newInputTable, lastFrameInputTable)
-		--[[
-		if ((not newInputTable.L3) and (lastFrameInputTable.L3)) then
-			trainingOverlayVisible = not trainingOverlayVisible
-			if (not trainingOverlayVisible) then
-				handleSelection()
-			end
-		end]]
-
 		if trainingOverlayVisible then
 			if ((not newInputTable.R2) and (lastFrameInputTable.R2)) then
 				trainingOptionIndex = trainingOptionIndex + 1
@@ -898,8 +879,6 @@
 					afterDamageActionTimer = 0
 					isPerformingAfterDamageAction = false
 				end
-			--else
-				--handleDummyMovement()
 			end
 		end
 		if ((not hasStateTriggeredAction()) or (hasStateTriggeredAction() and isPerformingAfterDamageAction)) then
@@ -955,16 +934,6 @@
 	end
 
 	-- handle timer
-	-- DEPRECATED
-	function handleTimer()
-		if timerStrings[optionIndexes[mainIndexes["Timer"]]] ==  "Infinite" then
-			memory.write_u16_le(0x717BA, 0x2400)
-		else
-			memory.write_u16_le(0x717BA, 0xAE22)
-		end	
-	end
-	
-	-- handle timer
 	function updateTimer()
 		currentTimer = memory.read_u16_le(0x1E7c68)
 		if optionIndexes[mainIndexes["Timer"]] ==  2 then
@@ -977,23 +946,20 @@
 
 	-- draw everything
 	function handleGeneralGraphics()
-		if (optionIndexes[mainIndexes["HUD"]] ~= 1) then
-			if player1HP > 0 and player2HP > 0 then
+		if (player1HP > 0 and player2HP > 0 and 
+			player1State ~= 29 and player2State ~= 29) then
+			if (optionIndexes[mainIndexes["HUD"]] ~= 1) then
 				drawHPValues()
 			end
-		end
-		if (optionIndexes[mainIndexes["StateAtk"]] ~= 2) then
-			if player1HP > 0 and player2HP > 0 then
+			if (optionIndexes[mainIndexes["StateAtk"]] ~= 2) then
 				drawStateAndFrame()
 			end
-		end
-		if (optionIndexes[mainIndexes["DmgHUD"]] ~= 2) then
-			if player1HP > 0 and player2HP > 0 then
+			if (optionIndexes[mainIndexes["DmgHUD"]] ~= 2) then
 				drawComboCounters()
 			end
-		end
-		if trainingOverlayVisible then
-			drawTrainingGui()
+			if trainingOverlayVisible then
+				drawTrainingGui()
+			end
 		end
 	end
 
@@ -1011,9 +977,10 @@
 		stageIndex = memory.read_u16_le(0x12AB20)
 		if isInBattleScreen then
 			-- check if the game is paused
-			local pauseMenuCanary = memory.read_u32_le(pauseMemoryAddress)
+			local pauseMenuCanary1 = memory.read_u32_le(pauseMemoryAddress1)
+			local pauseMenuCanary2 = memory.read_u32_le(pauseMemoryAddress2)
 			local gameWasPaused = gameIsPaused
-			if pauseMenuCanary == 1 then
+			if pauseMenuCanary2 == 2 and pauseMenuCanary1 > 0 then
 				gameIsPaused = true
 			else
 				gameIsPaused = false
