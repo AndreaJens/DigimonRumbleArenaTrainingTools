@@ -10,13 +10,14 @@
 		mainIndexes["Dummy"] 		= 1
 		mainIndexes["Action"] 		= 2
 		mainIndexes["Movement"] 	= 3
-		mainIndexes["HP"] 			= 6
-		mainIndexes["Timer"] 		= 7
-		mainIndexes["HUD"] 			= 8
-		mainIndexes["DmgHUD"] 		= 10
+		mainIndexes["HP"] 			= 7
+		mainIndexes["Timer"] 		= 8
+		mainIndexes["HUD"] 			= 9
+		mainIndexes["DmgHUD"] 		= 11
 		mainIndexes["AftDmg"]		= 4
 		mainIndexes["AftKnd"]		= 5
-		mainIndexes["StateAtk"]		= 9
+		mainIndexes["StateAtk"]		= 10
+		mainIndexes["MashDizzy"]	= 6
 
 	local trainingOverlayVisible = false
 	local inputTableP1={}
@@ -35,6 +36,7 @@
 		optionIndexes[mainIndexes["HUD"]] 			= 2
 		optionIndexes[mainIndexes["AftDmg"]] 		= 2
 		optionIndexes[mainIndexes["AftKnd"]] 		= 2
+		optionIndexes[mainIndexes["MashDizzy"]] 	= 2
 		optionIndexes[mainIndexes["StateAtk"]] 		= 1
 		optionIndexes[mainIndexes["DmgHUD"]] 		= 1
 
@@ -56,6 +58,7 @@
 		labels[mainIndexes["HUD"]] 			= "Show HP/Digi"
 		labels[mainIndexes["AftDmg"]] 		= "Act after Damage"
 		labels[mainIndexes["AftKnd"]] 		= "Act after Knockdown"
+		labels[mainIndexes["MashDizzy"]] 	= "Mash while Dizzy"
 		labels[mainIndexes["StateAtk"]] 	= "Show State/Action"
 		labels[mainIndexes["DmgHUD"]] 		= "Show Damage Info"
 
@@ -69,6 +72,7 @@
 		optionValueslists[mainIndexes["HUD"]] 			= hpDigiValues
 		optionValueslists[mainIndexes["AftDmg"]] 		= yesnoString
 		optionValueslists[mainIndexes["AftKnd"]] 		= yesnoString
+		optionValueslists[mainIndexes["MashDizzy"]]		= yesnoString
 		optionValueslists[mainIndexes["StateAtk"]] 		= yesnoString
 		optionValueslists[mainIndexes["DmgHUD"]] 		= yesnoString
 
@@ -82,6 +86,7 @@
 		optionSizes[mainIndexes["HUD"]] 		= table.getn(hpDigiValues)
 		optionSizes[mainIndexes["AftDmg"]] 		= table.getn(yesnoString)
 		optionSizes[mainIndexes["AftKnd"]] 		= table.getn(yesnoString)
+		optionSizes[mainIndexes["MashDizzy"]]	= table.getn(yesnoString)
 		optionSizes[mainIndexes["StateAtk"]] 	= table.getn(yesnoString)
 		optionSizes[mainIndexes["DmgHUD"]] 		= table.getn(yesnoString)
 
@@ -151,6 +156,7 @@
 	local comboDamage		 	= {0, 0}
 	local comboTimer			= {0, 0}
 	local comboDisplayDuration	= 120
+	local dizzyFrameCounterDummy = 0
 	
 	-- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
 	local pauseMemoryAddress1 = 0x05F880 -- 0 or 1
@@ -229,7 +235,7 @@
 	-- indexes as above
 	local healthMultiplier = {}
 		healthMultiplier[18]		= 1.21	-- MegaGargomon
-		healthMultiplier[15]		= 1.17	-- MetalGarurumon
+		healthMultiplier[15]		= 1.17  -- MetalGarurumon
 		healthMultiplier[0]			= 1.11	-- Reapermon
 		healthMultiplier[16]		= 1.11	-- WarGreymon
 		healthMultiplier[17]		= 1.11	-- Seraphimon
@@ -284,7 +290,7 @@
 		characterStatus[12] = "block"
 		characterStatus[13] = "hitstun"
 		characterStatus[14] = "air juggle"
-		characterStatus[15] = "stun"
+		characterStatus[15] = "dizzy"
 		characterStatus[16] = "knockdown"
 		characterStatus[17] = "air knockdown"
 		characterStatus[18] = "wake up"
@@ -317,6 +323,11 @@
 		return (originalAddress + p2PositionMemoryValues[player1Index] - 0x107AC8)
 	end
 	
+	-- check if character is dizzy
+	function isDizzy(playerState)
+		return playerState == 15
+	end
+	
 	-- check if character is in hitstun
 	function isHitstun(playerState)
 		return (playerState == 13 or playerState == 14)
@@ -347,6 +358,24 @@
 		comboCounters[index] = 0
 		comboDamage[index] = 0
 		comboTimer[index] = 0
+	end
+	
+	-- update dizzy
+	function updateDizzyDummy()
+		local dummyState = player2State
+		if activePlayer == 2 then
+			dummyState = player1State
+		end
+		if isDizzy(dummyState) then
+			dizzyFrameCounterDummy = dizzyFrameCounterDummy + 1
+			if optionIndexes[mainIndexes["MashDizzy"]] == 1 then
+				if dizzyFrameCounterDummy % 4 < 2 then
+					joypad.set({Left=true}, dummyPlayer)
+				else
+					joypad.set({Right=true}, dummyPlayer)
+				end
+			end
+		end
 	end
 	
 	-- update combo counters
@@ -812,98 +841,110 @@
 
 	-- handle dummy actions
 	function handleDummyMovement()
-		movementTimer = movementTimer + 1
-		if p2PositionMemoryValues[player1CharacterIndex] ~= nil then
-			player1X = memory.read_s32_le(0x107AC8)
-			player2X = memory.read_s32_le(p2PositionMemoryValues[player1CharacterIndex])
-		else
-			player1X = 0
-			player2X = 1
-		end
-		-- use variables for abstracting which player to control
-		local activePlayerX = player1X
-		local dummyPlayerX = player2X
+		local dummyState = player2State
 		if activePlayer == 2 then
-			activePlayerX = player2X
-			dummyPlayerX = player1X
+			dummyState = player1State
 		end
-		if movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Towards" then
-			if (activePlayerX > dummyPlayerX) then
-				joypad.set({Right=true}, dummyPlayer)
-			elseif (activePlayerX < dummyPlayerX) then
-				joypad.set({Left=true}, dummyPlayer)
+		if not isDizzy(dummyState) then
+			movementTimer = movementTimer + 1
+			if p2PositionMemoryValues[player1CharacterIndex] ~= nil then
+				player1X = memory.read_s32_le(0x107AC8)
+				player2X = memory.read_s32_le(p2PositionMemoryValues[player1CharacterIndex])
+			else
+				player1X = 0
+				player2X = 1
 			end
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Away" then
-			if (activePlayerX > dummyPlayerX) then
-				joypad.set({Left=true}, dummyPlayer)
-			elseif (activePlayerX < dummyPlayerX) then
-				joypad.set({Right=true}, dummyPlayer)
+			-- use variables for abstracting which player to control
+			local activePlayerX = player1X
+			local dummyPlayerX = player2X
+			if activePlayer == 2 then
+				activePlayerX = player2X
+				dummyPlayerX = player1X
 			end
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Towards" then
-			if (activePlayerX > dummyPlayerX) then
-				dashRight()
-			elseif (activePlayerX < dummyPlayerX) then
-				dashLeft()
+			if movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Towards" then
+				if (activePlayerX > dummyPlayerX) then
+					joypad.set({Right=true}, dummyPlayer)
+				elseif (activePlayerX < dummyPlayerX) then
+					joypad.set({Left=true}, dummyPlayer)
+				end
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Walk Away" then
+				if (activePlayerX > dummyPlayerX) then
+					joypad.set({Left=true}, dummyPlayer)
+				elseif (activePlayerX < dummyPlayerX) then
+					joypad.set({Right=true}, dummyPlayer)
+				end
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Towards" then
+				if (activePlayerX > dummyPlayerX) then
+					dashRight()
+				elseif (activePlayerX < dummyPlayerX) then
+					dashLeft()
+				end
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Away" then
+				if (activePlayerX > dummyPlayerX) then
+					dashLeft()
+				elseif (activePlayerX < dummyPlayerX) then
+					dashRight()
+				end
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Crouch" then
+				joypad.set({Down=true}, dummyPlayer)
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Hop" then
+				jumpSet(5)
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Jump" then
+				jumpSet(15)
+			elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "High Jump" then
+				jumpSet(35)
 			end
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Dash Away" then
-			if (activePlayerX > dummyPlayerX) then
-				dashLeft()
-			elseif (activePlayerX < dummyPlayerX) then
-				dashRight()
-			end
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Crouch" then
-			joypad.set({Down=true}, dummyPlayer)
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Hop" then
-			jumpSet(5)
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "Jump" then
-			jumpSet(15)
-		elseif movementStrings[optionIndexes[mainIndexes["Movement"]]] == "High Jump" then
-			jumpSet(35)
 		end
 	end
 
 	-- handle dummy actions
 	function handleDummy()
-		if hasStateTriggeredAction() then 
-			if (isPerformingAfterDamageAction) then
-				afterDamageActionTimer = afterDamageActionTimer + 1
-				local limit = 30
-				if player2State == 12 or player2State == 21 then
-					limit = 100
-					-- keep block up until the move is being performed
-					if (player1Move > 1) then
-						limit = afterDamageActionTimer + 1
+		local dummyState = player2State
+		if activePlayer == 2 then
+			dummyState = player1State
+		end
+		if not isDizzy(dummyState) then
+			if hasStateTriggeredAction() then 
+				if (isPerformingAfterDamageAction) then
+					afterDamageActionTimer = afterDamageActionTimer + 1
+					local limit = 30
+					if player2State == 12 or player2State == 21 then
+						limit = 100
+						-- keep block up until the move is being performed
+						if (player1Move > 1) then
+							limit = afterDamageActionTimer + 1
+						end
+					end
+					if afterDamageActionTimer > limit then
+						afterDamageActionTimer = 0
+						isPerformingAfterDamageAction = false
 					end
 				end
-				if afterDamageActionTimer > limit then
-					afterDamageActionTimer = 0
-					isPerformingAfterDamageAction = false
+			end
+			if ((not hasStateTriggeredAction()) or (hasStateTriggeredAction() and isPerformingAfterDamageAction)) then
+				actionTimer = actionTimer + 1
+				if (delayTimer > 0 or actionStrings[optionIndexes[mainIndexes["Action"]]] == "None") then
+					handleDummyMovement()
+				else
+					movementTimer = 0
 				end
-			end
-		end
-		if ((not hasStateTriggeredAction()) or (hasStateTriggeredAction() and isPerformingAfterDamageAction)) then
-			actionTimer = actionTimer + 1
-			if (delayTimer > 0 or actionStrings[optionIndexes[mainIndexes["Action"]]] == "None") then
-				handleDummyMovement()
-			else
-				movementTimer = 0
-			end
-			if actionStrings[optionIndexes[mainIndexes["Action"]]] == "Block" then
-				joypad.set({L1=true}, dummyPlayer)
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Crouch Block" then
-				joypad.set({L1=true, Down=true}, dummyPlayer)
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special1" then
-				singleActionSet({Circle=true}, {Circle=false})
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special2" then
-				singleActionSet({Triangle=true}, {Triangle=false})
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Jab" then
-				singleActionSet({Square=true}, {Square=false})
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Sweep" then
-				performSweep()
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Launcher" then
-				performLauncher()
-			elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Super" then
-				singleActionSet({R1=true}, {R1=false})
+				if actionStrings[optionIndexes[mainIndexes["Action"]]] == "Block" then
+					joypad.set({L1=true}, dummyPlayer)
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Crouch Block" then
+					joypad.set({L1=true, Down=true}, dummyPlayer)
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special1" then
+					singleActionSet({Circle=true}, {Circle=false})
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Special2" then
+					singleActionSet({Triangle=true}, {Triangle=false})
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Jab" then
+					singleActionSet({Square=true}, {Square=false})
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Sweep" then
+					performSweep()
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Launcher" then
+					performLauncher()
+				elseif actionStrings[optionIndexes[mainIndexes["Action"]]] == "Super" then
+					singleActionSet({R1=true}, {R1=false})
+				end
 			end
 		end
 	end
@@ -1005,12 +1046,13 @@
 					handleTrainingGui(inputTableP2, buttonPressedAtLastFrameP2)
 				end
 			end
-			if not gameIsPaused then
+			if not gameIsPaused then	
 				updateTimer()
 				updateScoreValues()
 				updateHPValues()
 				updateStateAndAction()
 				updateComboDisplay()
+				updateDizzyDummy()
 				if not trainingOverlayVisible then
 					handleDummy()
 				end

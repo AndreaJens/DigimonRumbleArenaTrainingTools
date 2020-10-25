@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.4.3
+# Digimon Rumble Arena - Training Tools v1.4.4
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
@@ -21,6 +21,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * Dummy movement;
 * Damage display and true combo counter (the in-game one is kind of bugged)
 * Set action to be performed after damage has been dealt/on wake up;
+* Mash during Dizzy state
 * Show HP/Digi in numeric form;
 * Show timer value in frames;
 * Show character state (attack, idle, block...) in text form.
@@ -32,8 +33,9 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * The script needs BizHawk version 2.5.2 or higher to work. Version 2.2 or lower won't show the life values;
 * When the game is set to full screen, the training options won't be scaled, causing visual artifacts;
 * After a Digievolution, the state variables used to show the current move don't work for the evolved Digimon;
-* If the scalable version is used, when the menu is shown, the game could stutter slightly, depending on your PC specs (not yet selectable).
+* If the scalable version is manually toggled inside the script, when the menu is shown, the game could stutter, depending on your PC specs (not yet selectable).
 * The combo counter/damage display doesn't work if the lifebars are set to infinite (no damage = no combo);
+* The HUD only works with BizHawk in Pixel Pro resolution mode
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
