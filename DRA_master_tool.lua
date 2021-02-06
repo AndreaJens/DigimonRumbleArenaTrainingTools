@@ -18,6 +18,9 @@
 		mainIndexes["AftKnd"]		= 5
 		mainIndexes["StateAtk"]		= 10
 		mainIndexes["MashDizzy"]	= 6
+		mainIndexes["FricAcc"]		= 12
+		mainIndexes["Hazards"]		= 13
+		mainIndexes["Items"]		= 14
 
 	local trainingOverlayVisible = false
 	local inputTableP1={}
@@ -39,12 +42,18 @@
 		optionIndexes[mainIndexes["MashDizzy"]] 	= 2
 		optionIndexes[mainIndexes["StateAtk"]] 		= 1
 		optionIndexes[mainIndexes["DmgHUD"]] 		= 1
+		optionIndexes[mainIndexes["FricAcc"]] 		= 1
+		optionIndexes[mainIndexes["Hazards"]] 		= 1
+		optionIndexes[mainIndexes["Items"]] 		= 1
 
 	local actionStrings = {"None", "Block", "Crouch Block", "Special1", "Special2", "Jab", "Sweep", "Launcher", "Super"}
 	local movementStrings = {"None", "Crouch", "Walk Towards", "Walk Away", "Dash Towards", "Dash Away", "Hop", "Jump", "High Jump"}
 	local healthStrings = {"Normal", "Infinite P2", "Infinite P1", "Infinite P1/P2"}
 	local timerStrings = {"Normal", "Infinite", "Cyclic"}
 	local yesnoString = {"Yes", "No"}
+	local frictionStrings = {"Default", "Adjusted"}
+	local hazardStrings = {"Default", "Stop Hazards"}
+	local itemStrings = {"Default", "Max 2 items", "Max 1 item", "Stop Item from Spawning"}
 	local dummyStrings = {"Player 1", "Player 2"}
 	local hpDigiValues = {"No", "Percentage", "Simple Percentage", "Absolute", "Absolute w/ Defence Value"}
 
@@ -61,6 +70,9 @@
 		labels[mainIndexes["MashDizzy"]] 	= "Mash while Dizzy"
 		labels[mainIndexes["StateAtk"]] 	= "Show State/Action"
 		labels[mainIndexes["DmgHUD"]] 		= "Show Damage Info"
+		labels[mainIndexes["FricAcc"]] 		= "Friction/Acceleration"
+		labels[mainIndexes["Hazards"]] 		= "Stage Hazards"
+		labels[mainIndexes["Items"]] 		= "Items"
 
 	-- menu values
 	local optionValueslists = {}
@@ -75,6 +87,9 @@
 		optionValueslists[mainIndexes["MashDizzy"]]		= yesnoString
 		optionValueslists[mainIndexes["StateAtk"]] 		= yesnoString
 		optionValueslists[mainIndexes["DmgHUD"]] 		= yesnoString
+		optionValueslists[mainIndexes["FricAcc"]] 		= frictionStrings
+		optionValueslists[mainIndexes["Hazards"]] 		= hazardStrings
+		optionValueslists[mainIndexes["Items"]] 		= itemStrings
 
 	-- menu sizes
 	local optionSizes = {}
@@ -89,6 +104,9 @@
 		optionSizes[mainIndexes["MashDizzy"]]	= table.getn(yesnoString)
 		optionSizes[mainIndexes["StateAtk"]] 	= table.getn(yesnoString)
 		optionSizes[mainIndexes["DmgHUD"]] 		= table.getn(yesnoString)
+		optionSizes[mainIndexes["FricAcc"]] 	= table.getn(frictionStrings)
+		optionSizes[mainIndexes["Hazards"]] 	= table.getn(hazardStrings)
+		optionSizes[mainIndexes["Items"]] 		= table.getn(itemStrings)
 
 	local labelsSize = table.getn(labels)
 	local actionTimer = 0
@@ -158,6 +176,18 @@
 	local comboDisplayDuration	= 120
 	local dizzyFrameCounterDummy = 0
 	
+	-- item spawned memory address - if set to 3, prevents items from spawning (thanks @Yuri Bacon!)
+	local itemSpawnedMemoryAddress = 0x0D3A78;
+	
+	-- stage friction memory address (thanks @Yuri Bacon!)
+	local stageFrictionMemoryAddress = 0x0D3A70;
+	
+	-- stage acceleration memory address (thanks @Yuri Bacon!)
+	local stageAccelerationMemoryAddress = 0x0D3A74;
+	
+	-- stage hazards memory address (thanks @Yuri Bacon!)
+	local stageHazardsMemoryAddress = 0x1E7208;
+	
 	-- actually, this memory address just stops the sound effects in the background, still it's a nice canary for the pause menu being up
 	local pauseMemoryAddress1 = 0x05F880 -- 0 or 1
 	local pauseMemoryAddress2 = 0x0622EC -- == 2 if the game is properly paused
@@ -173,8 +203,43 @@
 	-- 00 - Reapermon, 01 - Black WarGreymon, 02 - Omnimon, 03 - Impmon, 04 - Beelzemon, 05 - Imperialdramon Paladin Mode, 06 - Gabumon, 07 - Agumon, 08 - Patamon, 09 - Terriermon, 10 - Guilmon, 11 - Renamon, 12 - Wormmon, 13 - Veemon, 14 - Gatomon, 15 - Metal Garurumon, 16 - WarGreymon, 17 - Seraphimon, 18 - MegaGargomon, 19 - Gallantmon, 20 - Sakuyamon, 21 - Stingmon, 22 - Imperialdramon, 23 - Magnadramon 
 
 	-- the stage index is stored at the memory address 0x12AB20
-	-- 1=Wilderness, 2=Revolution, 3=Sanctuary, 4=Glacier, 5=Volcano, 6=Reapermon's Stage(Final Stage), 7=Basketball Game, 8=Digivolve Race, 9=Target Games
-
+	-- 0=Recycling 1=Wilderness, 2=Revolution, 3=Sanctuary, 4=Glacier, 5=Volcano, 6=Reapermon's Stage(Final Stage), 7=Basketball Game, 8=Digivolve Race, 9=Target Games
+	local stageDefaultFriction = {}
+		stageDefaultFriction[0]		= 16384		-- Recycling
+		stageDefaultFriction[1]		= 14417    	-- Wilderness
+		stageDefaultFriction[2]		= 9830     	-- Revolution
+		stageDefaultFriction[3]		= 17039    	-- Sanctuary
+		stageDefaultFriction[4]		= 1638      -- Glacier
+		stageDefaultFriction[5]		= 14417		-- Volcano
+		stageDefaultFriction[6]		= 5898     	-- Reapermon's Stage
+		
+	local stageDefaultAcceleration = {}
+		stageDefaultAcceleration[0]		= 65536     -- Recycling
+		stageDefaultAcceleration[1]		= 65536     -- Wilderness
+		stageDefaultAcceleration[2]		= 65536     -- Revolution
+		stageDefaultAcceleration[3]		= 65536     -- Sanctuary
+		stageDefaultAcceleration[4]		= 6553      -- Glacier
+		stageDefaultAcceleration[5]		= 65536     -- Volcano
+		stageDefaultAcceleration[6]		= 58982     -- Reapermon's Stage
+		
+	local stageAdjustedFriction = {}
+		stageAdjustedFriction[0]		= 16384		-- Recycling
+		stageAdjustedFriction[1]		= 14417    	-- Wilderness
+		stageAdjustedFriction[2]		= 9830     	-- Revolution
+		stageAdjustedFriction[3]		= 17039    	-- Sanctuary
+		stageAdjustedFriction[4]		= 14417     -- Glacier
+		stageAdjustedFriction[5]		= 14417		-- Volcano
+		stageAdjustedFriction[6]		= 14417     -- Reapermon's Stage
+		
+	local stageAdjustedAcceleration = {}
+		stageAdjustedAcceleration[0]		= 65536     -- Recycling
+		stageAdjustedAcceleration[1]		= 65536     -- Wilderness
+		stageAdjustedAcceleration[2]		= 65536     -- Revolution
+		stageAdjustedAcceleration[3]		= 65536     -- Sanctuary
+		stageAdjustedAcceleration[4]		= 65536     -- Glacier
+		stageAdjustedAcceleration[5]		= 65536     -- Volcano
+		stageAdjustedAcceleration[6]		= 65536     -- Reapermon's Stage
+	
 	-- the X position of player 1 is always stored at the address 0x107AC8, independent on stage and match-up
 	-- as a reference: the starting point for P2 at Volcano has X = 327680. Use it to fill the missing values
 	local p2PositionMemoryValues = {}
@@ -700,6 +765,8 @@
 		handleNewAction()
 		handleHealthBars()
 		handleDummyPlayer()
+		handleFrictionAcceleration()
+		handleStageHazards()
 	end
 
 	-- update GUI and selection from Menu
@@ -984,6 +1051,44 @@
 			memory.write_u16_le(0x1E7c68, 3001)
 		end	
 	end
+	
+	-- handle item spawn
+	function updateItemSpawnLimit()
+		if optionIndexes[mainIndexes["Items"]] ==  2 then
+			memory.write_u16_le(itemSpawnedMemoryAddress, 1)
+		elseif optionIndexes[mainIndexes["Items"]] ==  3 then
+			memory.write_u16_le(itemSpawnedMemoryAddress, 2)
+		elseif optionIndexes[mainIndexes["Items"]] ==  4 then
+			memory.write_u16_le(itemSpawnedMemoryAddress, 3)
+		end	
+	end
+	
+	-- handle friction/acceleration
+	function handleFrictionAcceleration()
+		if (stageDefaultFriction[stageIndex] ~= nil and 
+		    stageDefaultAcceleration[stageIndex] ~= nil and 
+		    stageAdjustedFriction[stageIndex] ~= nil and 
+		    stageAdjustedAcceleration[stageIndex] ~= nil) then 
+		   
+			if frictionStrings[optionIndexes[mainIndexes["FricAcc"]]] ==  "Default" then
+				memory.write_s32_le(stageFrictionMemoryAddress, stageDefaultFriction[stageIndex])
+				memory.write_s32_le(stageAccelerationMemoryAddress, stageDefaultAcceleration[stageIndex])
+			elseif frictionStrings[optionIndexes[mainIndexes["FricAcc"]]] == "Adjusted" then
+				memory.write_s32_le(stageFrictionMemoryAddress, stageAdjustedFriction[stageIndex])
+				memory.write_s32_le(stageAccelerationMemoryAddress, stageAdjustedAcceleration[stageIndex])
+			end
+		end
+	end
+	
+	-- handle stage hazards
+	function handleStageHazards()
+		if optionIndexes[mainIndexes["Hazards"]] == 1 then
+			memory.write_u16_le(stageHazardsMemoryAddress, 0)
+		else
+			memory.write_u16_le(stageHazardsMemoryAddress, 4)
+		end
+	end
+	
 
 	-- draw everything
 	function handleGeneralGraphics()
@@ -1048,6 +1153,7 @@
 			end
 			if not gameIsPaused then	
 				updateTimer()
+				updateItemSpawnLimit()
 				updateScoreValues()
 				updateHPValues()
 				updateStateAndAction()
