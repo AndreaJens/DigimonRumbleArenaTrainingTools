@@ -37,7 +37,8 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * After a Digievolution, the state variables used to show the current move don't work for the evolved Digimon;
 * If the scalable version is manually toggled inside the script, when the menu is shown, the game could stutter, depending on your PC specs (not yet selectable).
 * The combo counter/damage display doesn't work if the lifebars are set to infinite (no damage = no combo);
-* The HUD only works with BizHawk in Pixel Pro resolution mode
+* The HUD only works with BizHawk in Pixel Pro resolution mode;
+* During the dummy Record mode, the active character won't stop moving. Be aware of the positioning before starting a record session!
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
