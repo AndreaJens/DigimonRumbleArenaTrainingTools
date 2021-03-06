@@ -48,4 +48,4 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * Connor (ncea) for reporting the issues with BizHawk 2.2 and general improvement suggestions.
 
 # Development journal
-* An explanation of why I did this and how I figured out most of the stuff in this script can be found in a short-ish Google Doc [here](https://docs.google.com/document/d/1liomAm0ulcBb3i3iuVjsLtElVEWNgxwlazKeHJq3kug/edit?usp=sharing)
+* An explanation of why I did this and how I figured out most of the stuff in this script can be found in [this article](https://basgrospoing.fr/en/articles/how-i-created-a-training-mode-for-a-playstation-digimon-game) published by the website Bas Gros Poing.
