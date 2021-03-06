@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.5.0
+# Digimon Rumble Arena - Training Tools v1.5.1
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
@@ -26,6 +26,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * Show timer value in frames;
 * Show character state (attack, idle, block...) in text form;
 * Toggle stage hazards, items and normalize friction/acceleration for Glacier/Reapermon's Den
+* Record&Replay opponent function (by pressing L2 to record/stop recording and R2 to replay)
 
 # Known issues
 * Calling the GUI during a loading screen can cause the game to freeze;

@@ -1,9 +1,18 @@
-	--[[Digimon Rumble Arena Training Mode Script v1.4.3
+	--[[Digimon Rumble Arena Training Mode Script v1.5.1
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
 	2020 - Andrea "Jens" Demetrio
 	]]--
+	
+	-- shallow copy function for tables --
+	function shallowcopy(inputTable)
+		local outputTable = {}
+		for key, value in pairs(inputTable) do
+			outputTable[key] = value
+		end
+		return outputTable
+	end
 
 	-- global variables
 	local mainIndexes = {}
@@ -175,6 +184,19 @@
 	local comboTimer			= {0, 0}
 	local comboDisplayDuration	= 120
 	local dizzyFrameCounterDummy = 0
+	
+	-- record and replay --
+	local recordInputMapPerFrame = {}
+	local recordDummyFacingAtFrame = {}
+	local recordCurrentFrame = 0
+	local recordMaxDurationFrames = 600
+	local recordDurationFrames = 0
+	local isRecording = false
+	local isReplaying = false
+	local recordLabels = {"Up", "Down", "Left", "Right", "Square", "Triangle", "Circle", "Cross", "L1", "R1"}
+	local inputLabels = {"Up", "Down", "Left", "Right", "Square", "Triangle", "Circle", "Cross", "L1", "R1","L2", "R2", "Start", "Select"}
+	local recordLabelsSize = table.getn(recordLabels)
+	local inputLabelsSize = table.getn(inputLabels)
 	
 	-- item spawned memory address - if set to 3, prevents items from spawning (thanks @Yuri Bacon!)
 	local itemSpawnedMemoryAddress = 0x0D3A78;
@@ -496,6 +518,7 @@
 			lastHitDamage = {0, 0}
 		end
 	end
+	
 
 	-- draw GUI
 	function drawTrainingGui()
@@ -537,6 +560,12 @@
 	function drawHPValues()
 		-- timer
 		gui.drawText(400, 390, tostring(currentTimer), 0xffffffff, 0xff000000, 16, null, null, "center")
+		if(isRecording) then
+			gui.drawText(400, 330, "recording dummy", 0xffffffff, 0xff000000, 16, null, null, "center")
+		end
+		if(isReplaying) then
+			gui.drawText(400, 330, "dummy replay", 0xffffffff, 0xff000000, 16, null, null, "center")
+		end
 		-- hp and digi bars
 		if optionIndexes[mainIndexes["HUD"]] == 2 then
 			gui.drawText(596, 409, string.format("%.1f", player2Digi * 100 / defaultDigiValue) .. "%", 0xffffffff, 0xff000000, 16, null, null, "right")
@@ -721,6 +750,93 @@
 		player2ScoreLastFrame = player2Score
 		player1Score = memory.read_u32_le(scorePlayer1Address)
 		player2Score = memory.read_u32_le(scorePlayer2Address)
+	end
+	
+	-- handle dummy record --
+	function handleDummyRecord(newInputTable, lastFrameInputTable)
+		player1X = memory.read_s32_le(0x107AC8)
+		player2X = memory.read_s32_le(p2PositionMemoryValues[player1CharacterIndex])
+		if ((not isRecording) and (not isReplaying)) then
+			if ((not newInputTable.L2) and (lastFrameInputTable.L2)) then
+				isRecording = true
+				recordCurrentFrame = 0
+				recordDurationFrames = 0
+				recordInputMapPerFrame = {}
+				recordDummyFacingAtFrame = {}
+			elseif ((not newInputTable.R2) and (lastFrameInputTable.R2)) then
+				isReplaying = true
+				recordCurrentFrame = 0
+			end
+		elseif (isRecording) then
+			if (((not newInputTable.L2) and (lastFrameInputTable.L2)) or 
+				recordCurrentFrame >= recordMaxDurationFrames) then
+				isRecording = false
+			else
+				recordCurrentFrame = recordCurrentFrame + 1
+				recordDurationFrames = recordCurrentFrame
+				dummyInputMap = {}
+				recordInputMap = {}
+				dummyInputMap = {Up = false, Left = false, Right = false, Down = false,
+							Square = false, Circle = false, Triangle = false, Cross = false,
+							R1 = false, L1 = false}
+				recordInputMap = {Up = false, Left = false, Right = false, Down = false,
+							Square = false, Circle = false, Triangle = false, Cross = false,
+							R1 = false, L1 = false}
+				for index=1,recordLabelsSize,1 do
+					dummyInputMap[recordLabels[index]] = newInputTable[recordLabels[index]]
+					recordInputMap[recordLabels[index]] = newInputTable[recordLabels[index]]
+				end
+				joypad.set(recordInputMap, dummyPlayer)
+				recordInputMapPerFrame[recordCurrentFrame] = recordInputMap
+				
+				local activePlayerX = player1X
+				local dummyPlayerX = player2X
+				if activePlayer == 2 then
+					activePlayerX = player2X
+					dummyPlayerX = player1X
+				end
+				if activePlayerX > dummyPlayerX then
+					recordDummyFacingAtFrame[recordCurrentFrame] = true
+				else
+					recordDummyFacingAtFrame[recordCurrentFrame] = false
+				end
+				
+				playerInputMap = {Up = false, Left = false, Right = false, Down = false,
+							Square = false, Circle = false, Triangle = false, Cross = false,
+							R1 = false, L1 = false}
+				playerInputMap["L2"] = newInputTable.L2
+				playerInputMap["R2"] = newInputTable.R2
+				playerInputMap["Start"] = newInputTable.Start
+				--joypad.set(playerInputMap, activePlayer)
+			end
+		elseif (isReplaying) then
+			if (recordDurationFrames <= 0 or ((not newInputTable.R2) and (lastFrameInputTable.R2))) then
+				isReplaying = false
+			else
+				recordCurrentFrame = recordCurrentFrame + 1
+				if(recordCurrentFrame > recordDurationFrames) then
+					recordCurrentFrame = 1
+				end
+				local activePlayerX = player1X
+				local dummyPlayerX = player2X
+				if activePlayer == 2 then
+					activePlayerX = player2X
+					dummyPlayerX = player1X
+				end
+				inputMap = {Up = false, Left = false, Right = false, Down = false,
+							Square = false, Circle = false, Triangle = false, Cross = false,
+							R1 = false, L1 = false}
+				for index=1,recordLabelsSize,1 do
+					inputMap[recordLabels[index]] = recordInputMapPerFrame[recordCurrentFrame][recordLabels[index]]
+				end
+				local facing = activePlayerX > dummyPlayerX
+				if (facing ~= recordDummyFacingAtFrame[recordCurrentFrame]) then
+					inputMap["Left"] = recordInputMapPerFrame[recordCurrentFrame]["Right"]
+					inputMap["Right"] = recordInputMapPerFrame[recordCurrentFrame]["Left"]
+				end
+				joypad.set(inputMap, dummyPlayer)
+			end
+		end
 	end
 
 	-- handle "act after damage"
@@ -1108,7 +1224,7 @@
 			end
 		end
 	end
-
+	
 	-- main routine
 	while true do
 		-- check if we are in the character selection screen or in the normal battle menu
@@ -1140,8 +1256,8 @@
 				handleSelection()
 			end
 			-- get input
-			inputTableP1=joypad.get(1)
-			inputTableP2=joypad.get(2)
+			inputTableP1 = shallowcopy(joypad.get(1))
+			inputTableP2 = shallowcopy(joypad.get(2))
 			-- update the GUI only if the game is paused
 			if gameIsPaused then
 				if inputDelayCycles < 10 then
@@ -1160,12 +1276,19 @@
 				updateComboDisplay()
 				updateDizzyDummy()
 				if not trainingOverlayVisible then
-					handleDummy()
+					if(activePlayer == 1) then
+						handleDummyRecord(inputTableP1, buttonPressedAtLastFrameP1)
+					else
+						handleDummyRecord(inputTableP2, buttonPressedAtLastFrameP2)
+					end
+					if(not (isReplaying or isRecording)) then
+						handleDummy()
+					end
 				end
 			end
 			-- save last frame input
-			buttonPressedAtLastFrameP1 = inputTableP1;
-			buttonPressedAtLastFrameP2 = inputTableP2;
+			buttonPressedAtLastFrameP1 = shallowcopy(inputTableP1)
+			buttonPressedAtLastFrameP2 = shallowcopy(inputTableP2)
 			-- handle graphics
 			handleGeneralGraphics()
 		end
