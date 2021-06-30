@@ -1,3 +1,6 @@
+v 1.5.2 (30.06.2021)
+*	Fixed Record&Replay opponent function (L2 = record, R2 = replay) so that it uses player 2 inputs for the dummy
+
 v 1.5.1 (06.03.2021)
 *	Added Record&Replay opponent function (L2 = record, R2 = replay)
 

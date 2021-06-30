@@ -1,8 +1,8 @@
-	--[[Digimon Rumble Arena Training Mode Script v1.5.1
+	--[[Digimon Rumble Arena Training Mode Script v1.5.2
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
-	2020 - Andrea "Jens" Demetrio
+	2020 - 2021 Andrea "Jens" Demetrio
 	]]--
 	
 	-- shallow copy function for tables --
@@ -753,7 +753,7 @@
 	end
 	
 	-- handle dummy record --
-	function handleDummyRecord(newInputTable, lastFrameInputTable)
+	function handleDummyRecord(newInputTable, dummyInputTable, lastFrameInputTable)
 		player1X = memory.read_s32_le(0x107AC8)
 		player2X = memory.read_s32_le(p2PositionMemoryValues[player1CharacterIndex])
 		if ((not isRecording) and (not isReplaying)) then
@@ -783,10 +783,10 @@
 							Square = false, Circle = false, Triangle = false, Cross = false,
 							R1 = false, L1 = false}
 				for index=1,recordLabelsSize,1 do
-					dummyInputMap[recordLabels[index]] = newInputTable[recordLabels[index]]
-					recordInputMap[recordLabels[index]] = newInputTable[recordLabels[index]]
+					dummyInputMap[recordLabels[index]] = dummyInputTable[recordLabels[index]]
+					recordInputMap[recordLabels[index]] = dummyInputTable[recordLabels[index]]
 				end
-				joypad.set(recordInputMap, dummyPlayer)
+				-- joypad.set(recordInputMap, dummyPlayer)
 				recordInputMapPerFrame[recordCurrentFrame] = recordInputMap
 				
 				local activePlayerX = player1X
@@ -1277,9 +1277,9 @@
 				updateDizzyDummy()
 				if not trainingOverlayVisible then
 					if(activePlayer == 1) then
-						handleDummyRecord(inputTableP1, buttonPressedAtLastFrameP1)
+						handleDummyRecord(inputTableP1, inputTableP2, buttonPressedAtLastFrameP1)
 					else
-						handleDummyRecord(inputTableP2, buttonPressedAtLastFrameP2)
+						handleDummyRecord(inputTableP2, inputTableP1, buttonPressedAtLastFrameP2)
 					end
 					if(not (isReplaying or isRecording)) then
 						handleDummy()

@@ -1,4 +1,4 @@
-# Digimon Rumble Arena - Training Tools v1.5.1
+# Digimon Rumble Arena - Training Tools v1.5.2
 A LUA script for Bizhawk that adds training mode options to Digimon Rumble Arena (US version, PS1).
 
 # How to use it
@@ -26,7 +26,7 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * Show timer value in frames;
 * Show character state (attack, idle, block...) in text form;
 * Toggle stage hazards, items and normalize friction/acceleration for Glacier/Reapermon's Den
-* Record&Replay opponent function (by pressing L2 to record/stop recording and R2 to replay)
+* Record&Replay opponent function (by pressing L2 to record/stop recording and R2 to replay) - use player 2 controls to move the dummy!
 
 # Known issues
 * Calling the GUI during a loading screen can cause the game to freeze;
@@ -38,7 +38,6 @@ While you are using the GUI, the player 2 character will stand still. It is advi
 * If the scalable version is manually toggled inside the script, when the menu is shown, the game could stutter, depending on your PC specs (not yet selectable).
 * The combo counter/damage display doesn't work if the lifebars are set to infinite (no damage = no combo);
 * The HUD only works with BizHawk in Pixel Pro resolution mode;
-* During the dummy Record mode, the active character won't stop moving. Be aware of the positioning before starting a record session!
 
 # Acknowledgements
 * Bizhawk's Memory Watch and Memory Search utilities + all its Lua tools, which made this possible;
