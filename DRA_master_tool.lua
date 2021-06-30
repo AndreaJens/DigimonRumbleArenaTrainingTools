@@ -2,7 +2,7 @@
 	A handy Bizhawk LUA script to add some training functions to the game.
 	Code is ugly, but does what is supposed to. Feel free to improve it as you wish.
 	The code is released under a MIT license.
-	2020 - 2021 Andrea "Jens" Demetrio
+	Copyright (c) 2020 - 2021 Andrea "Jens" Demetrio
 	]]--
 	
 	-- shallow copy function for tables --
