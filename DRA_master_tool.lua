@@ -524,7 +524,7 @@
 	function drawTrainingGui()
 		gui.drawBox(0, 0, 960, 480, null, 0xaaaaaaaa)
 		gui.text(240, 20, 'Digimon Rumble Arena - Training Helper', 0xffaaaa00)
-		gui.text(50, 40, 'Scroll between options with L2/R2. Scroll between values with L1/R1.', 0xffaaaa00)
+		gui.text(50, 40, 'Scroll between options with Up/Down. Scroll between values with Cross/Triangle.', 0xffaaaa00)
 		for index=1,labelsSize,1 do
 			color1 = inactiveColorLabel
 			color2 = inactiveColorItem
@@ -543,7 +543,7 @@
 		local outlineColor = 0xffff333333
 		gui.drawBox(0, 0, 960, 480, null, 0xaaaaaaaa)
 		gui.drawText(400, 20, 'Digimon Rumble Arena - Training Helper', 0xffaaaa00, outlineColor, fontSize + 4, null, null, "center")
-		gui.drawText(400, 40, 'Scroll between options with L2/R2. Scroll between values with L1/R1.', 0xffaaaa00, outlineColor, fontSize - 2, null, null, "center")
+		gui.drawText(400, 40, 'Scroll between options with Up/Down. Scroll between values with Cross/Triangle.', 0xffaaaa00, outlineColor, fontSize - 2, null, null, "center")
 		for index=1,labelsSize,1 do
 			color1 = inactiveColorLabel
 			color2 = inactiveColorItem
@@ -888,18 +888,18 @@
 	-- update GUI and selection from Menu
 	function handleTrainingGui(newInputTable, lastFrameInputTable)
 		if trainingOverlayVisible then
-			if ((not newInputTable.R2) and (lastFrameInputTable.R2)) then
+			if ((not newInputTable.Down) and (lastFrameInputTable.Down)) then
 				trainingOptionIndex = trainingOptionIndex + 1
 				if(trainingOptionIndex > labelsSize) then
 					trainingOptionIndex = 1
 				end
-			elseif ((not newInputTable.L2) and (lastFrameInputTable.L2)) then
+			elseif ((not newInputTable.Up) and (lastFrameInputTable.Up)) then
 				trainingOptionIndex = trainingOptionIndex - 1
 				if(trainingOptionIndex < 1) then
 					trainingOptionIndex = labelsSize
 				end
 			end
-			if ((not newInputTable.R1) and (lastFrameInputTable.R1)) then
+			if ((not newInputTable.Cross) and (lastFrameInputTable.Cross)) then
 				optionIndexes[trainingOptionIndex] = optionIndexes[trainingOptionIndex] + 1
 				if(optionIndexes[trainingOptionIndex] > optionSizes[trainingOptionIndex]) then
 					optionIndexes[trainingOptionIndex] = 1
@@ -907,7 +907,7 @@
 				if (trainingOptionIndex <= 2) then
 					handleNewAction()
 				end
-			elseif ((not newInputTable.L1) and (lastFrameInputTable.L1)) then
+			elseif ((not newInputTable.Triangle) and (lastFrameInputTable.Triangle)) then
 				optionIndexes[trainingOptionIndex] = optionIndexes[trainingOptionIndex] - 1
 				if(optionIndexes[trainingOptionIndex] < 1) then
 					optionIndexes[trainingOptionIndex] = optionSizes[trainingOptionIndex]
@@ -1263,6 +1263,12 @@
 				if inputDelayCycles < 10 then
 					inputDelayCycles = inputDelayCycles + 1
 				else
+					-- YB: These poke some ASM instruction values, causing the game to ignore Up/Down/Cross/Triangle
+          -- inputs while the game is paused. Now we can use them in handleTrainingGui()!!
+					memory.write_u16_le(0x071FF8, 0)
+          memory.write_u16_le(0x072038, 0x0800)
+          memory.write_u16_le(0x071FB4, 0)
+          memory.write_u16_le(0x071FC4, 0)
 					handleTrainingGui(inputTableP1, buttonPressedAtLastFrameP1)
 					handleTrainingGui(inputTableP2, buttonPressedAtLastFrameP2)
 				end
